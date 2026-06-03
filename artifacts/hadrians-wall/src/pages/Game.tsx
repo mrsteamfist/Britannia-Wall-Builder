@@ -24,9 +24,6 @@ import { MeeplePiece } from "@/components/game/MeeplePiece";
 import boardDesktop from "@assets/board_desktop.png";
 import boardMobile from "@assets/board_mobile.png";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-type Zone = "pool" | "garrison" | "build" | "recruit";
-
 // ── Responsive hook ────────────────────────────────────────────────────────
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState<boolean>(() =>
@@ -41,15 +38,16 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-// ── Draggable meeple ───────────────────────────────────────────────────────
-function DraggableMeeple({ id, size = "sm" }: { id: number; size?: "sm" | "md" }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+// ── Draggable citizen (only in Town zone) ─────────────────────────────────
+function DraggableCitizen({ idx }: { idx: number }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `citizen-${idx}`,
+  });
   const style = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.15 : 1,
     touchAction: "none" as const,
   };
-  const sz = size === "md" ? "w-8 h-10" : "w-6 h-8";
   return (
     <div
       ref={setNodeRef}
@@ -57,398 +55,535 @@ function DraggableMeeple({ id, size = "sm" }: { id: number; size?: "sm" | "md" }
       {...listeners}
       {...attributes}
       className="select-none cursor-grab active:cursor-grabbing"
-      data-testid={`meeple-${id}`}
+      data-testid={`citizen-${idx}`}
     >
-      <MeeplePiece className={`${sz} text-primary drop-shadow-md`} />
+      <MeeplePiece className="w-7 h-9 text-amber-700 drop-shadow-md" />
     </div>
   );
 }
 
-// ── Droppable zone overlay on the board image ──────────────────────────────
-function BoardZone({
-  zoneId,
-  ids,
-  topPct,
-  heightPct,
-}: {
-  zoneId: Zone;
-  ids: number[];
-  topPct: number;
-  heightPct: number;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: zoneId });
+// ── Non-draggable pending citizen (in Farm or Quarry) ─────────────────────
+function PendingCitizen() {
   return (
-    <div
-      ref={setNodeRef}
-      style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-      className={`absolute inset-x-0 transition-all duration-100 ${
-        isOver
-          ? "bg-white/20 outline outline-2 outline-white/70 outline-offset-[-2px]"
-          : "bg-transparent hover:bg-white/5"
-      }`}
-      data-testid={`zone-${zoneId}`}
-    >
-      <div className="absolute inset-0 flex flex-wrap gap-1 items-center justify-center p-1">
-        {ids.map((id) => (
-          <DraggableMeeple key={id} id={id} size="sm" />
-        ))}
-        {ids.length === 0 && isOver && (
-          <span className="text-white/60 text-[9px] font-serif italic pointer-events-none">
-            Drop here
-          </span>
-        )}
+    <div className="relative select-none">
+      <MeeplePiece className="w-7 h-9 text-amber-700/50" />
+      <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-600 rounded-full flex items-center justify-center">
+        <span className="text-[7px] text-white font-bold">1</span>
       </div>
     </div>
   );
 }
 
-// ── Pict attack display (read-only zone at top of board) ──────────────────
-function PictZone({
-  attack,
+// ── Droppable board zone overlay ───────────────────────────────────────────
+type DropZoneId = "garrison" | "farm" | "quarry";
+
+function DroppableZone({
+  id,
+  children,
+  topPct,
+  heightPct,
+  className = "",
+}: {
+  id: DropZoneId;
+  children: React.ReactNode;
+  topPct: number;
+  heightPct: number;
+  className?: string;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ top: `${topPct}%`, height: `${heightPct}%` }}
+      className={`absolute inset-x-0 transition-all duration-100 flex flex-wrap gap-1 items-center justify-center p-1 ${
+        isOver
+          ? "bg-white/25 outline outline-2 outline-white/80 outline-offset-[-2px]"
+          : "bg-transparent hover:bg-white/5"
+      } ${className}`}
+      data-testid={`zone-${id}`}
+    >
+      {children}
+      {isOver && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-white text-[10px] font-serif italic opacity-80 bg-black/40 px-2 py-0.5">
+            Release to assign
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Display-only zone (Town source, Picts) ────────────────────────────────
+function DisplayZone({
+  children,
   topPct,
   heightPct,
 }: {
-  attack: number;
+  children: React.ReactNode;
   topPct: number;
   heightPct: number;
 }) {
   return (
     <div
       style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-      className="absolute inset-x-0 flex items-end justify-center pb-1.5 pointer-events-none"
+      className="absolute inset-x-0 flex flex-wrap gap-1 items-center justify-center p-1"
     >
-      <motion.div
-        key={attack}
-        initial={{ scale: 1.25 }}
-        animate={{ scale: 1 }}
-        className="flex items-center gap-2 bg-black/65 px-3 py-1 border border-destructive/70"
-        data-testid="pict-attack"
-      >
-        <div className="flex gap-0.5 flex-wrap max-w-[100px] justify-center">
-          {[...Array(Math.min(attack, 10))].map((_, i) => (
-            <PictWarrior key={i} className="w-3 h-3 text-destructive" />
-          ))}
-          {attack > 10 && (
-            <span className="text-destructive text-[9px] font-bold">+{attack - 10}</span>
-          )}
-        </div>
-        <span className="text-white font-serif font-bold text-sm tracking-wide">
-          ATK {attack}
-        </span>
-      </motion.div>
+      {children}
     </div>
   );
 }
 
-// ── Shared stats panel ─────────────────────────────────────────────────────
-function StatsPanel({
-  state,
-  garrisonIds,
-  buildIds,
-  defenceThisTurn,
-  netDamage,
-  onEndTurn,
-  compact = false,
+// ── Pict danger indicator ─────────────────────────────────────────────────
+function PictMeter({ picts, max = 4 }: { picts: number; max?: number }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex gap-1">
+        {[...Array(max)].map((_, i) => (
+          <motion.div
+            key={i}
+            animate={{
+              backgroundColor: i < picts ? "hsl(var(--destructive))" : "transparent",
+              scale: i < picts && i === picts - 1 ? [1, 1.2, 1] : 1,
+            }}
+            transition={{ duration: 0.3 }}
+            className="w-5 h-5 border-2 border-destructive/60 rounded-sm"
+            data-testid={`pict-meter-${i}`}
+          />
+        ))}
+      </div>
+      <span
+        className={`text-xs font-serif font-bold ${
+          picts >= 3 ? "text-destructive animate-pulse" : picts >= 2 ? "text-orange-500" : "text-foreground/60"
+        }`}
+      >
+        {picts}/4 Picts
+      </span>
+    </div>
+  );
+}
+
+// ── Stat counter badge ────────────────────────────────────────────────────
+function StatBadge({
+  label,
+  value,
+  accent = false,
+  danger = false,
 }: {
-  state: ReturnType<typeof gameReducer>;
-  garrisonIds: number[];
-  buildIds: number[];
-  defenceThisTurn: number;
-  netDamage: number;
-  onEndTurn: () => void;
-  compact?: boolean;
+  label: string;
+  value: number;
+  accent?: boolean;
+  danger?: boolean;
 }) {
   return (
-    <div className={`flex flex-col gap-3 ${compact ? "p-2" : "p-4"}`}>
+    <div
+      className={`flex flex-col items-center border-2 px-3 py-1.5 ${
+        danger ? "border-destructive/70 bg-destructive/10" : accent ? "border-primary/60 bg-primary/10" : "border-border bg-card/60"
+      }`}
+    >
+      <span className={`text-xl md:text-2xl font-serif font-bold ${danger ? "text-destructive" : accent ? "text-primary" : ""}`}>
+        {value}
+      </span>
+      <span className="text-[9px] uppercase tracking-wider opacity-60 font-bold">{label}</span>
+    </div>
+  );
+}
+
+// ── Stats + controls panel ────────────────────────────────────────────────
+type GameStateType = ReturnType<typeof gameReducer>;
+
+function StatsPanel({
+  state,
+  onRestart,
+}: {
+  state: GameStateType;
+  onRestart: () => void;
+}) {
+  const isDangerous = state.picts >= 3;
+  const noMoves = state.status === 'playing' && state.town === 0;
+
+  return (
+    <div className="flex flex-col gap-3 p-3 md:p-4">
+
+      {/* Action hint */}
+      <div className={`text-center text-xs font-serif italic border-2 border-border px-3 py-2 bg-card ${
+        state.status !== 'playing' ? 'opacity-40' : ''
+      }`}>
+        {state.status === 'playing'
+          ? state.town > 0
+            ? "Drag a citizen from Town ↑ to Garrison, Farm, or Quarry"
+            : "⚠ No citizens in Town — no moves available"
+          : state.status === 'win'
+            ? "The Wall is built. Britannia is secure."
+            : "Britannia has fallen to the Picts."}
+      </div>
+
+      {/* Key counters */}
+      <div className="grid grid-cols-4 gap-1.5">
+        <StatBadge label="Town" value={state.town} accent />
+        <StatBadge label="Soldiers" value={state.soldiers} />
+        <StatBadge label="Picts" value={state.picts} danger={state.picts >= 3} />
+        <StatBadge label="Wall" value={state.wallSections} accent />
+      </div>
+
+      {/* Pict danger bar */}
+      <div className={`flex items-center justify-between border-2 px-3 py-2 ${
+        isDangerous ? "border-destructive/60 bg-destructive/5" : "border-border bg-card/40"
+      }`}>
+        <PictMeter picts={state.picts} />
+        {state.picts >= 2 && state.status === 'playing' && (
+          <span className="text-[9px] text-destructive font-bold uppercase tracking-wider animate-pulse">
+            ⚠ Raid!
+          </span>
+        )}
+      </div>
+
       {/* Wall progress */}
       <section>
-        <h2 className="text-[10px] md:text-xs font-serif uppercase tracking-widest mb-1.5 opacity-70">
-          The Wall — {state.wallPieces}/{state.maxWallPieces}
-        </h2>
+        <h3 className="text-[10px] font-serif uppercase tracking-widest mb-1 opacity-60">
+          The Wall — {state.wallSections} / {state.maxWallSections}
+        </h3>
         <div
-          className="flex gap-1 p-2 border-4 border-border bg-card/60 shadow-inner justify-center"
+          className="flex gap-1 p-2 border-4 border-border bg-card/60 justify-center"
           data-testid="wall-display"
         >
-          {[...Array(state.maxWallPieces)].map((_, i) => (
-            <div key={i} className="w-9 h-12 md:w-12 md:h-16 flex-shrink-0">
-              <WallSegment built={i < state.wallPieces} className="w-full h-full text-secondary" />
+          {[...Array(state.maxWallSections)].map((_, i) => (
+            <div key={i} className="w-9 h-12 md:w-11 md:h-14 flex-shrink-0">
+              <WallSegment built={i < state.wallSections} className="w-full h-full text-secondary" />
             </div>
           ))}
         </div>
       </section>
 
-      {/* Garrison + Defence */}
-      <section className="border-4 border-border bg-card p-2 md:p-3">
-        <h3 className="font-serif font-bold uppercase tracking-wider text-[10px] md:text-xs mb-1.5 border-b border-border pb-1">
-          Standing Garrison
-        </h3>
-        <div className="flex flex-wrap gap-0.5 justify-center min-h-[24px] items-center mb-1">
-          {state.garrisonTroops === 0 && (
-            <span className="text-[10px] italic opacity-40 font-serif">No standing garrison</span>
-          )}
-          {[...Array(Math.min(state.garrisonTroops, 20))].map((_, i) => (
-            <SoldierPiece key={i} className="w-3.5 h-3.5 text-primary" />
-          ))}
-          {state.garrisonTroops > 20 && (
-            <span className="text-[10px] opacity-60 font-serif">+{state.garrisonTroops - 20}</span>
-          )}
+      {/* Farm / Quarry state */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="border-2 border-border bg-card/40 p-2 text-center">
+          <div className="text-[9px] uppercase tracking-wider opacity-50 mb-1">Farms</div>
+          <div className="text-lg font-serif font-bold text-primary">{state.farm}/2</div>
+          <div className="text-[9px] opacity-40 font-serif">
+            {state.farm === 0 ? "Send 2 → +3 to Town" : "1 more to recruit!"}
+          </div>
         </div>
-        <p
-          className="text-[10px] text-center opacity-50 font-serif"
-          data-testid="garrison-troops"
-        >
-          {state.garrisonTroops} troops — auto-defend each turn
-        </p>
-      </section>
-
-      {/* Defence readout */}
-      <section className="border-4 border-border bg-card p-2 md:p-3 text-center">
-        <div className="text-[9px] uppercase tracking-wider opacity-60 font-bold mb-0.5">
-          Defence this turn
+        <div className="border-2 border-border bg-card/40 p-2 text-center">
+          <div className="text-[9px] uppercase tracking-wider opacity-50 mb-1">Quarry</div>
+          <div className="text-lg font-serif font-bold text-primary">{state.quarry}/2</div>
+          <div className="text-[9px] opacity-40 font-serif">
+            {state.quarry === 0 ? "Send 2 → +1 wall" : "1 more to build!"}
+          </div>
         </div>
-        <div className="text-2xl font-serif font-bold text-primary">{defenceThisTurn}</div>
-        <div className="text-[10px] opacity-60 font-serif">
-          vs Pict attack{" "}
-          <span className="text-destructive font-bold">{state.pictAttack}</span>
-          {netDamage > 0 ? (
-            <span className="text-destructive ml-1">— {netDamage} dmg incoming!</span>
-          ) : (
-            <span className="text-green-700 ml-1">— holding!</span>
-          )}
-        </div>
-        <div className="text-[9px] opacity-40 mt-0.5 font-serif">
-          Citizens on wall ×2 ({garrisonIds.length * 2}) + troops ({state.garrisonTroops})
-        </div>
-      </section>
-
-      {/* End Turn */}
-      <Button
-        size="lg"
-        className="w-full text-base font-serif uppercase tracking-widest h-12 border-4 border-primary rounded-none shadow-md"
-        onClick={onEndTurn}
-        disabled={state.status !== "playing"}
-        data-testid="btn-end-turn"
-      >
-        End Turn · Year {state.turn}
-      </Button>
+      </div>
 
       {/* Battle log */}
-      <div className="border-4 border-border bg-card flex-1">
-        <div className="p-2 border-b-2 border-border bg-card/80">
+      <div className="border-4 border-border bg-card">
+        <div className="p-2 border-b-2 border-border">
           <h3 className="font-serif uppercase tracking-widest text-[10px]">Annals of Britannia</h3>
         </div>
-        <ScrollArea className="h-24 md:h-32 p-3">
-          <div className="flex flex-col gap-1.5">
+        <ScrollArea className="h-28 md:h-36 p-2">
+          <div className="flex flex-col gap-1">
             {[...state.battleLog].reverse().map((log, i) => (
-              <div
+              <p
                 key={i}
                 className={`font-serif ${
-                  i === 0 ? "text-xs font-bold text-foreground" : "text-[10px] opacity-55"
+                  i === 0 ? "text-xs font-bold" : "text-[10px] opacity-50"
+                } ${
+                  log.includes("RAID") || log.includes("Pict") || log.includes("falls")
+                    ? i === 0 ? "text-destructive" : ""
+                    : ""
                 }`}
               >
                 {log}
-              </div>
+              </p>
             ))}
           </div>
         </ScrollArea>
       </div>
+
+      {/* Restart always visible at bottom */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full font-serif tracking-wider border-2"
+        onClick={onRestart}
+        data-testid="btn-restart"
+      >
+        New Game
+      </Button>
     </div>
   );
 }
 
-// ── Desktop board with landscape image ────────────────────────────────────
-function DesktopBoard({
-  state,
-  garrisonIds,
-  buildIds,
-  recruitIds,
-  poolIds,
-}: {
-  state: ReturnType<typeof gameReducer>;
-  garrisonIds: number[];
-  buildIds: number[];
-  recruitIds: number[];
-  poolIds: number[];
-}) {
+// ── Desktop board (landscape image) ───────────────────────────────────────
+function DesktopBoard({ state }: { state: GameStateType }) {
   return (
-    /* 1136×1024 ≈ 9:8 ratio */
-    <div
-      className="relative w-full overflow-hidden"
-      style={{ aspectRatio: "1136 / 1024" }}
-    >
+    <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1136 / 1024" }}>
       <img
         src={boardDesktop}
         alt="Hadrian's Wall board"
         className="absolute inset-0 w-full h-full object-cover"
         draggable={false}
       />
-      <div className="absolute inset-0 bg-black/8 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
-      {/* Pict Raiders — 0–22% */}
-      <PictZone attack={state.pictAttack} topPct={0} heightPct={22} />
+      {/* Pict Raiders zone 0–22%: display Pict warriors */}
+      <DisplayZone topPct={0} heightPct={22}>
+        {state.picts === 0 ? (
+          <span className="text-white/40 text-[10px] font-serif italic">No Picts yet</span>
+        ) : (
+          [...Array(Math.min(state.picts, 8))].map((_, i) => (
+            <PictWarrior key={i} className="w-6 h-6 text-destructive drop-shadow" />
+          ))
+        )}
+        {state.picts > 8 && (
+          <span className="text-destructive font-bold text-sm">+{state.picts - 8}</span>
+        )}
+      </DisplayZone>
 
-      {/* Garrison — 22–47% */}
-      <BoardZone zoneId="garrison" ids={garrisonIds} topPct={22} heightPct={25} />
+      {/* Garrison droppable 22–47%: shows soldiers */}
+      <DroppableZone id="garrison" topPct={22} heightPct={25}>
+        {state.soldiers === 0 ? (
+          <span className="text-white/30 text-[9px] font-serif italic pt-5">
+            Drop citizen to enlist as soldier
+          </span>
+        ) : (
+          [...Array(Math.min(state.soldiers, 12))].map((_, i) => (
+            <SoldierPiece key={i} className="w-5 h-5 text-primary drop-shadow" />
+          ))
+        )}
+        {state.soldiers > 12 && (
+          <span className="text-primary text-xs font-bold">+{state.soldiers - 12}</span>
+        )}
+      </DroppableZone>
 
-      {/* Farms / Recruit — 47–63% */}
-      <BoardZone zoneId="recruit" ids={recruitIds} topPct={47} heightPct={16} />
+      {/* Farm droppable 47–63%: shows pending + awaiting */}
+      <DroppableZone id="farm" topPct={47} heightPct={16}>
+        {state.farm === 0 ? (
+          <span className="text-white/30 text-[9px] font-serif italic">
+            Drop 2 citizens → +1 recruit
+          </span>
+        ) : (
+          <PendingCitizen />
+        )}
+      </DroppableZone>
 
-      {/* Town / Pool — 63–80% */}
-      <BoardZone zoneId="pool" ids={poolIds} topPct={63} heightPct={17} />
+      {/* Town zone 63–80%: draggable citizens (source) */}
+      <DisplayZone topPct={63} heightPct={17}>
+        {state.town === 0 ? (
+          <span className="text-white/40 text-[9px] font-serif italic">Town empty</span>
+        ) : (
+          [...Array(state.town)].map((_, i) => (
+            <DraggableCitizen key={i} idx={i} />
+          ))
+        )}
+      </DisplayZone>
 
-      {/* Quarry / Build — 80–100% */}
-      <BoardZone zoneId="build" ids={buildIds} topPct={80} heightPct={20} />
+      {/* Quarry droppable 80–100%: shows pending */}
+      <DroppableZone id="quarry" topPct={80} heightPct={20}>
+        {state.quarry === 0 ? (
+          <span className="text-white/30 text-[9px] font-serif italic">
+            Drop 2 citizens → +1 wall
+          </span>
+        ) : (
+          <PendingCitizen />
+        )}
+      </DroppableZone>
     </div>
   );
 }
 
-// ── Mobile board with portrait image ──────────────────────────────────────
-function MobileBoard({
-  state,
-  garrisonIds,
-  buildIds,
-  recruitIds,
-  poolIds,
-}: {
-  state: ReturnType<typeof gameReducer>;
-  garrisonIds: number[];
-  buildIds: number[];
-  recruitIds: number[];
-  poolIds: number[];
-}) {
+// ── Mobile board (portrait image) ─────────────────────────────────────────
+function MobileBoard({ state }: { state: GameStateType }) {
   return (
-    /* 400×1024 ≈ 5:13 ratio */
-    <div
-      className="relative w-full overflow-hidden"
-      style={{ aspectRatio: "400 / 1024" }}
-    >
+    <div className="relative w-full overflow-hidden" style={{ aspectRatio: "400 / 1024" }}>
       <img
         src={boardMobile}
         alt="Hadrian's Wall board"
         className="absolute inset-0 w-full h-full object-cover"
         draggable={false}
       />
-      <div className="absolute inset-0 bg-black/8 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
-      {/* Pict Raiders — 0–20% */}
-      <PictZone attack={state.pictAttack} topPct={0} heightPct={20} />
+      {/* Pict Raiders 0–20% */}
+      <DisplayZone topPct={0} heightPct={20}>
+        {state.picts === 0 ? (
+          <span className="text-white/40 text-[9px] font-serif italic">No Picts</span>
+        ) : (
+          [...Array(Math.min(state.picts, 6))].map((_, i) => (
+            <PictWarrior key={i} className="w-5 h-5 text-destructive drop-shadow" />
+          ))
+        )}
+        {state.picts > 6 && <span className="text-destructive font-bold text-xs">+{state.picts - 6}</span>}
+      </DisplayZone>
 
-      {/* Garrison — 20–42% */}
-      <BoardZone zoneId="garrison" ids={garrisonIds} topPct={20} heightPct={22} />
+      {/* Garrison 20–42% */}
+      <DroppableZone id="garrison" topPct={20} heightPct={22}>
+        {state.soldiers === 0 ? (
+          <span className="text-white/30 text-[8px] font-serif italic pt-4">
+            Drop to enlist soldier
+          </span>
+        ) : (
+          [...Array(Math.min(state.soldiers, 8))].map((_, i) => (
+            <SoldierPiece key={i} className="w-5 h-5 text-primary drop-shadow" />
+          ))
+        )}
+        {state.soldiers > 8 && <span className="text-primary text-xs font-bold">+{state.soldiers - 8}</span>}
+      </DroppableZone>
 
-      {/* Farms / Recruit — 42–60% */}
-      <BoardZone zoneId="recruit" ids={recruitIds} topPct={42} heightPct={18} />
+      {/* Farm 42–60% */}
+      <DroppableZone id="farm" topPct={42} heightPct={18}>
+        {state.farm === 0 ? (
+          <span className="text-white/30 text-[8px] font-serif italic">2 → +1 recruit</span>
+        ) : (
+          <PendingCitizen />
+        )}
+      </DroppableZone>
 
-      {/* Town / Pool — 60–76% */}
-      <BoardZone zoneId="pool" ids={poolIds} topPct={60} heightPct={16} />
+      {/* Town 60–76%: draggable citizens */}
+      <DisplayZone topPct={60} heightPct={16}>
+        {state.town === 0 ? (
+          <span className="text-white/40 text-[8px] font-serif italic">Town empty</span>
+        ) : (
+          [...Array(state.town)].map((_, i) => (
+            <DraggableCitizen key={i} idx={i} />
+          ))
+        )}
+      </DisplayZone>
 
-      {/* Quarry / Build — 76–100% */}
-      <BoardZone zoneId="build" ids={buildIds} topPct={76} heightPct={24} />
+      {/* Quarry 76–100% */}
+      <DroppableZone id="quarry" topPct={76} heightPct={24}>
+        {state.quarry === 0 ? (
+          <span className="text-white/30 text-[8px] font-serif italic">2 → +1 wall section</span>
+        ) : (
+          <PendingCitizen />
+        )}
+      </DroppableZone>
     </div>
   );
 }
 
-// ── Main Game ─────────────────────────────────────────────────────────────
+// ── Instructions modal ────────────────────────────────────────────────────
+function InstructionsModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent
+        className="border-4 border-border rounded-none bg-background max-w-md mx-3"
+        aria-describedby="instr-desc"
+      >
+        <DialogHeader>
+          <DialogTitle className="font-serif text-xl text-primary text-center">
+            Governor's Mandate
+          </DialogTitle>
+        </DialogHeader>
+        <div id="instr-desc" className="font-serif space-y-3 text-sm leading-relaxed">
+          <p>
+            <strong>Goal:</strong> Build all 6 sections of Hadrian's Wall before the Picts overwhelm the province.
+          </p>
+          <p className="text-[11px] italic opacity-70">
+            Each time you drag a citizen to a zone, one Pict arrives at the border.
+          </p>
+          <div className="space-y-2.5 text-[13px]">
+            <div className="flex gap-2">
+              <span className="text-amber-700 font-bold min-w-[70px]">Town</span>
+              <span>Your pool of available citizens. Drag them to any zone.</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-primary font-bold min-w-[70px]">Garrison</span>
+              <span>
+                A citizen becomes a <em>permanent soldier</em>. Each raid: 50% success → 2 Picts
+                driven off; 50% fail → soldier dies, 1 Pict retreats.
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-green-700 font-bold min-w-[70px]">Farm</span>
+              <span>
+                Send 2 citizens → both return to Town <em>plus 1 new citizen</em> (net +1).
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-stone-600 font-bold min-w-[70px]">Quarry</span>
+              <span>Send 2 citizens → both return to Town and build 1 wall section.</span>
+            </div>
+          </div>
+          <div className="border-2 border-destructive/50 bg-destructive/5 p-2 text-xs space-y-1">
+            <p className="font-bold text-destructive">Raid rule (triggers at 2 Picts):</p>
+            <p>With soldier: 50% repel (2 Picts gone) or 50% fail (1 soldier + 1 Pict gone).</p>
+            <p>Without soldier: 2 Picts raid — 1 citizen is slain (Farm → Town → Quarry priority).</p>
+          </div>
+          <div className="border-2 border-destructive/40 bg-destructive/5 p-2 text-xs">
+            <p className="font-bold text-destructive">Lose if:</p>
+            <p>4 Picts ever gather · All Romans are gone · No citizens left in Town</p>
+          </div>
+          <p className="text-xs opacity-50 italic">
+            Tip: Enlist 1–2 soldiers early so raids don't devastate your workforce.
+          </p>
+        </div>
+        <div className="flex justify-end mt-1">
+          <Button onClick={onClose} className="rounded-none font-serif tracking-widest" data-testid="btn-dismiss">
+            I Understand
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main Game component ───────────────────────────────────────────────────
 export default function Game() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
   const [showInstructions, setShowInstructions] = useState(true);
-  const [meepleZones, setMeepleZones] = useState<Zone[]>(() =>
-    Array(INITIAL_STATE.totalWorkers).fill("pool")
-  );
-  const [activeMeepleId, setActiveMeepleId] = useState<number | null>(null);
+  const [activeCitizenIdx, setActiveCitizenIdx] = useState<number | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } })
   );
 
-  const poolIds = meepleZones.flatMap((z, i) => (z === "pool" ? [i] : []));
-  const garrisonIds = meepleZones.flatMap((z, i) => (z === "garrison" ? [i] : []));
-  const buildIds = meepleZones.flatMap((z, i) => (z === "build" ? [i] : []));
-  const recruitIds = meepleZones.flatMap((z, i) => (z === "recruit" ? [i] : []));
-
   const handleDragStart = useCallback((e: DragStartEvent) => {
-    setActiveMeepleId(e.active.id as number);
+    const id = String(e.active.id);
+    const idx = parseInt(id.replace("citizen-", ""), 10);
+    setActiveCitizenIdx(isNaN(idx) ? null : idx);
   }, []);
 
-  const handleDragEnd = useCallback(
-    (e: DragEndEvent) => {
-      setActiveMeepleId(null);
-      const { active, over } = e;
-      if (!over) return;
-      const id = active.id as number;
-      const zone = over.id as Zone;
-      setMeepleZones((prev) => {
-        const next = [...prev];
-        next[id] = zone;
-        return next;
-      });
-    },
-    []
-  );
+  const handleDragEnd = useCallback((e: DragEndEvent) => {
+    setActiveCitizenIdx(null);
+    if (!e.over) return;
+    const dest = e.over.id as string;
+    if (dest === "garrison" || dest === "farm" || dest === "quarry") {
+      dispatch({ type: "ASSIGN", destination: dest });
+    }
+  }, []);
 
-  const handleDragCancel = useCallback(() => setActiveMeepleId(null), []);
-
-  function handleEndTurn() {
-    dispatch({
-      type: "END_TURN",
-      garrison: garrisonIds.length,
-      build: buildIds.length,
-      recruit: recruitIds.length,
-    });
-    setMeepleZones(Array(state.totalWorkers).fill("pool"));
-  }
+  const handleDragCancel = useCallback(() => setActiveCitizenIdx(null), []);
 
   function handleRestart() {
     dispatch({ type: "RESTART" });
-    setMeepleZones(Array(INITIAL_STATE.totalWorkers).fill("pool"));
   }
-
-  const defenceThisTurn = garrisonIds.length * 2 + state.garrisonTroops;
-  const netDamage = Math.max(0, state.pictAttack - defenceThisTurn);
-
-  const boardProps = { state, garrisonIds, buildIds, recruitIds, poolIds };
-  const statProps = {
-    state,
-    garrisonIds,
-    buildIds,
-    defenceThisTurn,
-    netDamage,
-    onEndTurn: handleEndTurn,
-  };
 
   return (
     <div className="min-h-dvh w-full flex flex-col bg-background text-foreground overflow-x-hidden">
 
       {/* ── Header ── */}
-      <header className="px-3 py-2 md:px-5 md:py-3 border-b-4 border-border flex flex-wrap justify-between items-center bg-card shadow-md gap-2 flex-shrink-0">
+      <header className="px-3 py-2 md:px-5 md:py-3 border-b-4 border-border flex justify-between items-center bg-card shadow-md flex-shrink-0 gap-2">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg md:text-2xl font-serif text-primary uppercase tracking-widest font-bold">
+          <h1 className="text-base md:text-xl font-serif text-primary uppercase tracking-widest font-bold">
             Hadrian's Wall
           </h1>
-          <span className="text-sm md:text-base font-serif text-foreground/50 italic">
-            Year {state.turn}
-          </span>
         </div>
-        <div className="flex items-center gap-4 md:gap-6">
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] md:text-xs font-bold uppercase tracking-wider mb-0.5">
-              City Health
+        <div className="flex items-center gap-2">
+          {/* Compact status in header */}
+          <div className="flex gap-1.5 items-center text-xs font-serif">
+            <span className="opacity-60">
+              🧱 {state.wallSections}/{state.maxWallSections}
             </span>
-            <div className="flex gap-0.5">
-              {[...Array(state.maxCityHealth)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className={`w-2.5 h-3.5 md:w-3.5 md:h-5 border border-border ${
-                    i < state.cityHealth ? "bg-primary" : "bg-transparent opacity-20"
-                  }`}
-                  animate={{ opacity: i < state.cityHealth ? 1 : 0.2 }}
-                  transition={{ duration: 0.3 }}
-                  data-testid={`health-bar-${i}`}
-                />
-              ))}
-            </div>
+            <span className={state.picts >= 3 ? "text-destructive font-bold animate-pulse" : "opacity-60"}>
+              👹 {state.picts}/4
+            </span>
           </div>
           <button
             onClick={() => setShowInstructions(true)}
@@ -468,39 +603,35 @@ export default function Game() {
         onDragCancel={handleDragCancel}
       >
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
-
           {isDesktop ? (
             <>
-              {/* Desktop: landscape board on left */}
-              <div className="flex-1 flex items-center justify-center bg-stone-950/30 p-2 md:p-4">
+              {/* Desktop: landscape board */}
+              <div className="flex-1 flex items-center justify-center bg-stone-950/20 p-3">
                 <div className="w-full max-w-2xl">
-                  <DesktopBoard {...boardProps} />
-                  <p className="text-center text-[10px] font-serif italic opacity-40 mt-1.5">
-                    Drag citizens between zones · Then press End Turn
+                  <DesktopBoard state={state} />
+                  <p className="text-center text-[10px] font-serif italic opacity-35 mt-1">
+                    Drag citizens from Town to Garrison · Farm · Quarry
                   </p>
                 </div>
               </div>
-
-              {/* Desktop: stats on right */}
-              <div className="md:w-72 lg:w-80 flex-shrink-0 flex flex-col border-l-4 border-border overflow-y-auto">
-                <StatsPanel {...statProps} compact={false} />
+              {/* Desktop: stats right */}
+              <div className="md:w-72 lg:w-80 flex-shrink-0 border-l-4 border-border overflow-y-auto">
+                <StatsPanel state={state} onRestart={handleRestart} />
               </div>
             </>
           ) : (
-            <>
-              {/* Mobile: portrait board + stats stacked */}
-              <div className="flex flex-col">
-                <MobileBoard {...boardProps} />
-                <StatsPanel {...statProps} compact={true} />
-              </div>
-            </>
+            /* Mobile: portrait board + stats below */
+            <div className="flex flex-col">
+              <MobileBoard state={state} />
+              <StatsPanel state={state} onRestart={handleRestart} />
+            </div>
           )}
         </main>
 
         {/* Drag overlay */}
         <DragOverlay dropAnimation={null}>
-          {activeMeepleId !== null && (
-            <MeeplePiece className="w-10 h-12 text-primary drop-shadow-2xl rotate-6" />
+          {activeCitizenIdx !== null && (
+            <MeeplePiece className="w-10 h-12 text-amber-700 drop-shadow-2xl rotate-6" />
           )}
         </DragOverlay>
       </DndContext>
@@ -513,28 +644,29 @@ export default function Game() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
-              state.status === "win" ? "bg-secondary/90" : "bg-destructive/95"
+              state.status === "win" ? "bg-secondary/90" : "bg-destructive/90"
             }`}
+            data-testid="outcome-overlay"
           >
             <div className="max-w-sm w-full bg-background border-8 border-border p-6 text-center shadow-2xl">
-              <h2 className="text-3xl font-serif mb-3 uppercase tracking-widest text-primary">
-                {state.status === "win" ? "Roma Victrix!" : "Defeat"}
+              <h2 className="text-2xl md:text-3xl font-serif mb-3 uppercase tracking-widest text-primary">
+                {state.status === "win" ? "Roma Victrix!" : "Britannia Falls"}
               </h2>
-              <p className="text-base font-serif mb-3 italic">
+              <p className="text-sm md:text-base font-serif mb-2 italic">
                 {state.status === "win"
-                  ? "The Wall stands eternal. The province is safe."
-                  : "The Picts have overrun Eboracum! The province is lost."}
+                  ? "Hadrian's Wall stands eternal. The north is secured."
+                  : "The Picts have overcome the province. Britannia is lost."}
               </p>
-              <p className="text-sm font-serif opacity-60 mb-5">
-                {state.status === "win"
-                  ? `Completed in ${state.turn - 1} years · ${state.garrisonTroops} garrison troops`
-                  : `${state.wallPieces} of ${state.maxWallPieces} sections built`}
-              </p>
+              <div className="text-xs opacity-60 font-serif mb-5 space-y-0.5">
+                <p>Wall: {state.wallSections}/{state.maxWallSections} sections</p>
+                <p>Soldiers: {state.soldiers} · Citizens: {state.town + state.farm + state.quarry}</p>
+                <p>Picts at end: {state.picts}</p>
+              </div>
               <Button
                 size="lg"
                 className="rounded-none border-2 border-border font-serif tracking-wider"
                 onClick={handleRestart}
-                data-testid="btn-restart"
+                data-testid="btn-play-again"
               >
                 {state.status === "win" ? "Govern Again" : "Try Again"}
               </Button>
@@ -543,61 +675,7 @@ export default function Game() {
         )}
       </AnimatePresence>
 
-      {/* ── Instructions modal ── */}
-      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
-        <DialogContent
-          className="border-4 border-border rounded-none bg-background max-w-md mx-3"
-          aria-describedby="instructions-desc"
-        >
-          <DialogHeader>
-            <DialogTitle className="font-serif text-xl text-primary text-center">
-              Governor's Mandate
-            </DialogTitle>
-          </DialogHeader>
-          <div id="instructions-desc" className="font-serif space-y-3 text-sm leading-relaxed">
-            <p>
-              Build Hadrian's Wall before the Picts destroy Eboracum.{" "}
-              <strong>Complete all 6 wall sections to win.</strong>
-            </p>
-            <p className="text-xs italic opacity-60">
-              Drag your citizens between the five zones on the board, then press End Turn.
-            </p>
-            <div className="space-y-2">
-              <div className="flex gap-2 items-start">
-                <span className="text-destructive font-bold min-w-[68px]">Garrison</span>
-                <span className="text-sm">Station citizens on the Wall. Each grants ×2 defence this turn.</span>
-              </div>
-              <div className="flex gap-2 items-start">
-                <span className="text-green-700 font-bold min-w-[68px]">Farms</span>
-                <span className="text-sm">Send citizens to recruit — trains 1 permanent soldier who auto-defends forever.</span>
-              </div>
-              <div className="flex gap-2 items-start">
-                <span className="text-amber-700 font-bold min-w-[68px]">Town</span>
-                <span className="text-sm">Unassigned citizens wait here ready to be moved each turn.</span>
-              </div>
-              <div className="flex gap-2 items-start">
-                <span className="text-stone-600 font-bold min-w-[68px]">Quarry</span>
-                <span className="text-sm">Send citizens to build — each one completes 1 wall section.</span>
-              </div>
-            </div>
-            <p className="text-destructive font-bold text-sm">
-              The Pictish war band grows stronger every year. Plan ahead.
-            </p>
-            <p className="text-xs opacity-50 italic">
-              Tip: Early recruits compound — a full garrison lets you focus on building later.
-            </p>
-          </div>
-          <div className="flex justify-end mt-2">
-            <Button
-              onClick={() => setShowInstructions(false)}
-              className="rounded-none font-serif tracking-widest"
-              data-testid="btn-dismiss-instructions"
-            >
-              I Understand
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <InstructionsModal open={showInstructions} onClose={() => setShowInstructions(false)} />
     </div>
   );
 }
