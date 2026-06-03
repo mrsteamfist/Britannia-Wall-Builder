@@ -16,13 +16,14 @@ import { CSS } from "@dnd-kit/utilities";
 import { gameReducer, INITIAL_STATE } from "../game/gameState";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WallSegment } from "@/components/game/WallSegment";
 import { SoldierPiece } from "@/components/game/SoldierPiece";
 import { PictWarrior } from "@/components/game/PictWarrior";
 import { MeeplePiece } from "@/components/game/MeeplePiece";
 import boardDesktop from "@assets/board_desktop.png";
 import boardMobile from "@assets/board_mobile.png";
+import scrollBg from "@assets/hwbgimage_1780518925080.png";
+import continueBtn from "@assets/hwintrocontinuebutton_1780518925079.png";
 
 // ── Responsive hook ────────────────────────────────────────────────────────
 function useMediaQuery(query: string): boolean {
@@ -469,66 +470,110 @@ function InstructionsModal({
   onClose: () => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent
-        className="border-4 border-border rounded-none bg-background max-w-md mx-3"
-        aria-describedby="instr-desc"
-      >
-        <DialogHeader>
-          <DialogTitle className="font-serif text-xl text-primary text-center">
-            Governor's Mandate
-          </DialogTitle>
-        </DialogHeader>
-        <div id="instr-desc" className="font-serif space-y-3 text-sm leading-relaxed">
-          <p>
-            <strong>Goal:</strong> Build all 6 sections of Hadrian's Wall before the Picts overwhelm the province.
-          </p>
-          <p className="text-[11px] italic opacity-70">
-            Each time you drag a citizen to a zone, one Pict arrives at the border.
-          </p>
-          <div className="space-y-2.5 text-[13px]">
-            <div className="flex gap-2">
-              <span className="text-amber-700 font-bold min-w-[70px]">Town</span>
-              <span>Your pool of available citizens. Drag them to any zone.</span>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3"
+          style={{ background: "rgba(0,0,0,0.88)" }}
+          data-testid="instructions-overlay"
+        >
+          {/* Scroll container — intrinsic aspect ratio of the scroll image */}
+          <motion.div
+            initial={{ scale: 0.92, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.92, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="relative w-full"
+            style={{ maxWidth: "min(420px, 90vw)", maxHeight: "90vh" }}
+          >
+            {/* Scroll background */}
+            <img
+              src={scrollBg}
+              alt=""
+              draggable={false}
+              className="w-full h-auto block select-none"
+            />
+
+            {/* Parchment text content — positioned over the scroll body */}
+            {/* The scroll image: usable area ~16–84% wide, ~19–79% tall */}
+            <div
+              className="absolute overflow-y-auto"
+              style={{
+                top: "19%",
+                bottom: "21%",
+                left: "16%",
+                right: "16%",
+              }}
+            >
+              <div className="font-serif text-[#3b1a09] space-y-2.5 text-[clamp(10px,2.2vw,13px)] leading-snug select-none">
+
+                <p className="font-bold text-[clamp(10px,2.4vw,13px)]">
+                  Goal: Build all 6 wall sections before the Picts overwhelm the province.
+                </p>
+
+                <p className="italic opacity-75 text-[clamp(9px,2vw,11px)]">
+                  Every citizen you assign brings 1 Pict to the border.
+                </p>
+
+                <div className="space-y-2 text-[clamp(9px,2vw,12px)]">
+                  <div>
+                    <span className="font-bold">Town —</span>{" "}
+                    Your citizen pool. Drag them to any zone.
+                  </div>
+                  <div>
+                    <span className="font-bold">Garrison —</span>{" "}
+                    Citizen becomes a permanent soldier. Raid (50%): success removes 2 Picts; failure costs 1 soldier &amp; 1 Pict.
+                  </div>
+                  <div>
+                    <span className="font-bold">Farm —</span>{" "}
+                    Send 2 → both return with a new recruit (+3 to Town).
+                  </div>
+                  <div>
+                    <span className="font-bold">Quarry —</span>{" "}
+                    Send 2 → both return and build 1 wall section.
+                  </div>
+                </div>
+
+                <div className="text-[clamp(9px,1.9vw,11px)] space-y-1 border border-[#8b2020]/40 bg-[#8b2020]/8 px-2 py-1.5">
+                  <p className="font-bold text-[#8b2020]">Raid triggers at 2 Picts:</p>
+                  <p>With soldiers: 50% repel (2 gone) or 50% fail (1 soldier + 1 Pict gone).</p>
+                  <p>No soldiers: 2 Picts raid — 1 citizen slain (Farm → Town → Quarry).</p>
+                </div>
+
+                <div className="text-[clamp(9px,1.9vw,11px)] border border-[#8b2020]/40 px-2 py-1.5">
+                  <span className="font-bold text-[#8b2020]">Lose if: </span>
+                  4 Picts gather · All Romans gone · Town empty
+                </div>
+
+                <p className="italic opacity-60 text-[clamp(8px,1.7vw,10px)]">
+                  Tip: Enlist 1–2 soldiers early to defend your workforce.
+                </p>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <span className="text-primary font-bold min-w-[70px]">Garrison</span>
-              <span>
-                A citizen becomes a <em>permanent soldier</em>. Each raid: 50% success → 2 Picts
-                driven off; 50% fail → soldier dies, 1 Pict retreats.
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-green-700 font-bold min-w-[70px]">Farm</span>
-              <span>
-                Send 2 citizens → both return to Town <em>plus 1 new citizen</em> (net +1).
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-stone-600 font-bold min-w-[70px]">Quarry</span>
-              <span>Send 2 citizens → both return to Town and build 1 wall section.</span>
-            </div>
-          </div>
-          <div className="border-2 border-destructive/50 bg-destructive/5 p-2 text-xs space-y-1">
-            <p className="font-bold text-destructive">Raid rule (triggers at 2 Picts):</p>
-            <p>With soldier: 50% repel (2 Picts gone) or 50% fail (1 soldier + 1 Pict gone).</p>
-            <p>Without soldier: 2 Picts raid — 1 citizen is slain (Farm → Town → Quarry priority).</p>
-          </div>
-          <div className="border-2 border-destructive/40 bg-destructive/5 p-2 text-xs">
-            <p className="font-bold text-destructive">Lose if:</p>
-            <p>4 Picts ever gather · All Romans are gone · No citizens left in Town</p>
-          </div>
-          <p className="text-xs opacity-50 italic">
-            Tip: Enlist 1–2 soldiers early so raids don't devastate your workforce.
-          </p>
-        </div>
-        <div className="flex justify-end mt-1">
-          <Button onClick={onClose} className="rounded-none font-serif tracking-widest" data-testid="btn-dismiss">
-            I Understand
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+
+            {/* Stone "I Understand" button — sits just below the scroll body */}
+            <button
+              onClick={onClose}
+              className="absolute left-1/2 -translate-x-1/2 transition-transform duration-100 hover:scale-105 active:scale-95 focus:outline-none"
+              style={{ bottom: "4%", width: "60%" }}
+              data-testid="btn-dismiss"
+              aria-label="I Understand"
+            >
+              <img
+                src={continueBtn}
+                alt="I Understand"
+                draggable={false}
+                className="w-full h-auto block drop-shadow-xl select-none"
+              />
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
