@@ -57,7 +57,7 @@ function DraggableCitizen({ idx }: { idx: number }) {
       className="select-none cursor-grab active:cursor-grabbing"
       data-testid={`citizen-${idx}`}
     >
-      <MeeplePiece className="w-12 h-14 drop-shadow-md" />
+      <MeeplePiece className="w-[60px] h-[72px] drop-shadow-md" />
     </div>
   );
 }
@@ -66,7 +66,7 @@ function DraggableCitizen({ idx }: { idx: number }) {
 function PendingCitizen() {
   return (
     <div className="relative select-none">
-      <MeeplePiece className="w-12 h-14 opacity-60" />
+      <MeeplePiece className="w-[60px] h-[72px] opacity-60" />
       <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-600 rounded-full flex items-center justify-center">
         <span className="text-[7px] text-white font-bold">1</span>
       </div>
@@ -127,7 +127,7 @@ function DisplayZone({
   return (
     <div
       style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-      className="absolute inset-x-0 flex flex-wrap gap-3 items-center justify-center p-1 pointer-events-none"
+      className="absolute inset-x-0 flex flex-wrap gap-3 items-center justify-center p-1"
     >
       {children}
     </div>
@@ -349,13 +349,13 @@ function DesktopBoard({ state }: { state: GameStateType }) {
       />
       <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
-      {/* Pict Raiders zone 0–22%: display Pict warriors */}
-      <DisplayZone topPct={0} heightPct={22}>
+      {/* Pict Raiders zone 0–20%: display Pict warriors */}
+      <DisplayZone topPct={0} heightPct={20}>
         {state.picts === 0 ? (
           <span className="text-white/40 text-[10px] font-serif italic">No Picts yet</span>
         ) : (
           [...Array(Math.min(state.picts, 6))].map((_, i) => (
-            <PictWarrior key={i} className="w-11 h-14 drop-shadow" />
+            <PictWarrior key={i} className="w-[60px] h-[72px] drop-shadow" />
           ))
         )}
         {state.picts > 6 && (
@@ -363,15 +363,15 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DisplayZone>
 
-      {/* Garrison droppable 22–47%: shows soldiers */}
-      <DroppableZone id="garrison" topPct={22} heightPct={25}>
+      {/* Garrison droppable 20–42%: shows soldiers */}
+      <DroppableZone id="garrison" topPct={20} heightPct={22}>
         {state.soldiers === 0 ? (
           <span className="text-white/30 text-[9px] font-serif italic pt-5">
             Drop citizen to enlist as soldier
           </span>
         ) : (
           [...Array(Math.min(state.soldiers, 8))].map((_, i) => (
-            <SoldierPiece key={i} className="w-11 h-14 drop-shadow" />
+            <SoldierPiece key={i} className="w-[60px] h-[72px] drop-shadow" />
           ))
         )}
         {state.soldiers > 8 && (
@@ -379,8 +379,8 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DroppableZone>
 
-      {/* Farm droppable 47–63%: shows pending + awaiting */}
-      <DroppableZone id="farm" topPct={47} heightPct={16}>
+      {/* Farm droppable 42–57%: shows pending + awaiting */}
+      <DroppableZone id="farm" topPct={42} heightPct={15}>
         {state.farm === 0 ? (
           <span className="text-white/30 text-[9px] font-serif italic">
             Drop 2 citizens → +1 recruit
@@ -390,8 +390,8 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DroppableZone>
 
-      {/* Town zone 63–80%: draggable citizens (source) */}
-      <DisplayZone topPct={63} heightPct={17}>
+      {/* Town zone 57–80%: draggable citizens (source) */}
+      <DisplayZone topPct={57} heightPct={23}>
         {state.town === 0 ? (
           <span className="text-white/40 text-[9px] font-serif italic">Town empty</span>
         ) : (
@@ -418,7 +418,7 @@ function DesktopBoard({ state }: { state: GameStateType }) {
 // ── Mobile board (portrait image) ─────────────────────────────────────────
 function MobileBoard({ state }: { state: GameStateType }) {
   return (
-    <div className="relative w-full overflow-hidden" style={{ aspectRatio: "400 / 1024" }}>
+    <div className="relative w-full" style={{ aspectRatio: "400 / 1024" }}>
       <img
         src={boardMobile}
         alt="Hadrian's Wall board"
@@ -433,7 +433,7 @@ function MobileBoard({ state }: { state: GameStateType }) {
           <span className="text-white/40 text-[9px] font-serif italic">No Picts</span>
         ) : (
           [...Array(Math.min(state.picts, 5))].map((_, i) => (
-            <PictWarrior key={i} className="w-10 h-12 drop-shadow" />
+            <PictWarrior key={i} className="w-[60px] h-[72px] drop-shadow" />
           ))
         )}
         {state.picts > 5 && <span className="text-destructive font-bold text-xs">+{state.picts - 5}</span>}
@@ -447,7 +447,7 @@ function MobileBoard({ state }: { state: GameStateType }) {
           </span>
         ) : (
           [...Array(Math.min(state.soldiers, 5))].map((_, i) => (
-            <SoldierPiece key={i} className="w-10 h-12 drop-shadow" />
+            <SoldierPiece key={i} className="w-[60px] h-[72px] drop-shadow" />
           ))
         )}
         {state.soldiers > 5 && <span className="text-primary text-xs font-bold">+{state.soldiers - 5}</span>}
@@ -720,7 +720,7 @@ export default function Game() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <main className="flex-1 flex flex-col md:flex-row min-h-0">
+        <main className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
           {isDesktop ? (
             <>
               {/* Board — fills all remaining space */}
@@ -737,9 +737,9 @@ export default function Game() {
               </div>
             </>
           ) : (
-            /* Mobile: board then compact strip */
-            <div className="flex flex-col min-h-0">
-              <div className="flex-1 min-h-0">
+            /* Mobile: scrollable board then compact strip */
+            <div className="flex flex-col">
+              <div className="flex-shrink-0">
                 <MobileBoard state={state} />
               </div>
               <MobileStatStrip
@@ -754,7 +754,7 @@ export default function Game() {
         {/* Drag overlay */}
         <DragOverlay dropAnimation={null}>
           {activeCitizenIdx !== null && (
-            <MeeplePiece className="w-16 h-20 drop-shadow-2xl" />
+            <MeeplePiece className="w-[72px] h-[88px] drop-shadow-2xl" />
           )}
         </DragOverlay>
       </DndContext>

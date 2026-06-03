@@ -3,7 +3,7 @@ export function SoldierPiece({ className }: { className?: string }) {
     <img
       src="/meeple_soldier.png"
       alt="Roman soldier"
-      className={`object-contain drop-shadow-md select-none pointer-events-none ${className ?? ""}`}
+      className={`object-contain drop-shadow-md select-none ${className ?? ""}`}
       draggable={false}
     />
   );
