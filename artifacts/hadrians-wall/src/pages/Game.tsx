@@ -1,4 +1,4 @@
-import { useReducer, useState, useCallback, useEffect } from "react";
+import { useReducer, useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DndContext,
@@ -15,7 +15,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { gameReducer, INITIAL_STATE } from "../game/gameState";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { WallSegment } from "@/components/game/WallSegment";
 import { SoldierPiece } from "@/components/game/SoldierPiece";
 import { PictWarrior } from "@/components/game/PictWarrior";
@@ -58,7 +57,7 @@ function DraggableCitizen({ idx }: { idx: number }) {
       className="select-none cursor-grab active:cursor-grabbing"
       data-testid={`citizen-${idx}`}
     >
-      <MeeplePiece className="w-7 h-9 text-amber-700 drop-shadow-md" />
+      <MeeplePiece className="w-10 h-12 drop-shadow-md" />
     </div>
   );
 }
@@ -67,7 +66,7 @@ function DraggableCitizen({ idx }: { idx: number }) {
 function PendingCitizen() {
   return (
     <div className="relative select-none">
-      <MeeplePiece className="w-7 h-9 text-amber-700/50" />
+      <MeeplePiece className="w-10 h-12 opacity-60" />
       <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-600 rounded-full flex items-center justify-center">
         <span className="text-[7px] text-white font-bold">1</span>
       </div>
@@ -96,17 +95,17 @@ function DroppableZone({
     <div
       ref={setNodeRef}
       style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-      className={`absolute inset-x-0 transition-all duration-100 flex flex-wrap gap-1 items-center justify-center p-1 ${
+      className={`absolute inset-x-0 transition-all duration-150 flex flex-wrap gap-1 items-center justify-center p-1 ${
         isOver
-          ? "bg-white/25 outline outline-2 outline-white/80 outline-offset-[-2px]"
-          : "bg-transparent hover:bg-white/5"
+          ? "bg-amber-100/30 outline outline-2 outline-amber-300/80 outline-offset-[-2px]"
+          : "bg-transparent hover:bg-white/10"
       } ${className}`}
       data-testid={`zone-${id}`}
     >
       {children}
       {isOver && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-white text-[10px] font-serif italic opacity-80 bg-black/40 px-2 py-0.5">
+          <span className="text-white text-[10px] font-serif font-bold tracking-wide opacity-90 bg-black/50 px-2 py-1">
             Release to assign
           </span>
         </div>
@@ -128,38 +127,9 @@ function DisplayZone({
   return (
     <div
       style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-      className="absolute inset-x-0 flex flex-wrap gap-1 items-center justify-center p-1"
+      className="absolute inset-x-0 flex flex-wrap gap-1 items-center justify-center p-1 pointer-events-none"
     >
       {children}
-    </div>
-  );
-}
-
-// ── Pict danger indicator ─────────────────────────────────────────────────
-function PictMeter({ picts, max = 4 }: { picts: number; max?: number }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex gap-1">
-        {[...Array(max)].map((_, i) => (
-          <motion.div
-            key={i}
-            animate={{
-              backgroundColor: i < picts ? "hsl(var(--destructive))" : "transparent",
-              scale: i < picts && i === picts - 1 ? [1, 1.2, 1] : 1,
-            }}
-            transition={{ duration: 0.3 }}
-            className="w-5 h-5 border-2 border-destructive/60 rounded-sm"
-            data-testid={`pict-meter-${i}`}
-          />
-        ))}
-      </div>
-      <span
-        className={`text-xs font-serif font-bold ${
-          picts >= 3 ? "text-destructive animate-pulse" : picts >= 2 ? "text-orange-500" : "text-foreground/60"
-        }`}
-      >
-        {picts}/4 Picts
-      </span>
     </div>
   );
 }
@@ -385,7 +355,7 @@ function DesktopBoard({ state }: { state: GameStateType }) {
           <span className="text-white/40 text-[10px] font-serif italic">No Picts yet</span>
         ) : (
           [...Array(Math.min(state.picts, 8))].map((_, i) => (
-            <PictWarrior key={i} className="w-6 h-6 text-destructive drop-shadow" />
+            <PictWarrior key={i} className="w-9 h-11 drop-shadow" />
           ))
         )}
         {state.picts > 8 && (
@@ -401,7 +371,7 @@ function DesktopBoard({ state }: { state: GameStateType }) {
           </span>
         ) : (
           [...Array(Math.min(state.soldiers, 12))].map((_, i) => (
-            <SoldierPiece key={i} className="w-5 h-5 text-primary drop-shadow" />
+            <SoldierPiece key={i} className="w-8 h-10 drop-shadow" />
           ))
         )}
         {state.soldiers > 12 && (
@@ -463,7 +433,7 @@ function MobileBoard({ state }: { state: GameStateType }) {
           <span className="text-white/40 text-[9px] font-serif italic">No Picts</span>
         ) : (
           [...Array(Math.min(state.picts, 6))].map((_, i) => (
-            <PictWarrior key={i} className="w-5 h-5 text-destructive drop-shadow" />
+            <PictWarrior key={i} className="w-8 h-10 drop-shadow" />
           ))
         )}
         {state.picts > 6 && <span className="text-destructive font-bold text-xs">+{state.picts - 6}</span>}
@@ -477,7 +447,7 @@ function MobileBoard({ state }: { state: GameStateType }) {
           </span>
         ) : (
           [...Array(Math.min(state.soldiers, 8))].map((_, i) => (
-            <SoldierPiece key={i} className="w-5 h-5 text-primary drop-shadow" />
+            <SoldierPiece key={i} className="w-8 h-10 drop-shadow" />
           ))
         )}
         {state.soldiers > 8 && <span className="text-primary text-xs font-bold">+{state.soldiers - 8}</span>}
@@ -691,7 +661,7 @@ function InstructionsModal({
 export default function Game() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
-  const [showInstructions, setShowInstructions] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [activeCitizenIdx, setActiveCitizenIdx] = useState<number | null>(null);
 
   const sensors = useSensors(
@@ -719,6 +689,12 @@ export default function Game() {
   function handleRestart() {
     dispatch({ type: "RESTART" });
   }
+
+  /* Game feedback flash state (ready for UI wiring) */
+  const prevRef = useRef<GameStateType>(state);
+  useEffect(() => {
+    prevRef.current = state;
+  }, [state]);
 
   return (
     <div className="h-dvh w-full flex flex-col bg-background text-foreground overflow-hidden">
@@ -748,16 +724,16 @@ export default function Game() {
           {isDesktop ? (
             <>
               {/* Board — fills all remaining space */}
-              <div className="flex-1 min-w-0 flex items-stretch">
+              <div className="flex-1 min-w-0 flex items-center justify-center relative">
                 <DesktopBoard state={state} />
-              </div>
-              {/* Narrow sidebar */}
-              <div className="w-44 flex-shrink-0 border-l-2 border-border overflow-y-auto">
-                <SidePanel
-                  state={state}
-                  onRestart={handleRestart}
-                  onHelp={() => setShowInstructions(true)}
-                />
+                {/* Floating sidebar card */}
+                <div className="absolute top-3 right-3 w-44 border-2 border-border bg-card/95 shadow-xl overflow-y-auto max-h-[92%]">
+                  <SidePanel
+                    state={state}
+                    onRestart={handleRestart}
+                    onHelp={() => setShowInstructions(true)}
+                  />
+                </div>
               </div>
             </>
           ) : (
@@ -778,7 +754,7 @@ export default function Game() {
         {/* Drag overlay */}
         <DragOverlay dropAnimation={null}>
           {activeCitizenIdx !== null && (
-            <MeeplePiece className="w-10 h-12 text-amber-700 drop-shadow-2xl rotate-6" />
+            <MeeplePiece className="w-14 h-16 drop-shadow-2xl" />
           )}
         </DragOverlay>
       </DndContext>
