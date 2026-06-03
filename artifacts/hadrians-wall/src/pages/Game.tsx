@@ -22,7 +22,7 @@ import { PictWarrior } from "@/components/game/PictWarrior";
 import { MeeplePiece } from "@/components/game/MeeplePiece";
 import boardDesktop from "@assets/board_desktop.png";
 import boardMobile from "@assets/board_mobile.png";
-import scrollBg from "@assets/ChatGPT_Image_Jun_3,_2026,_03_45_44_PM_(1)_1780519577688.png";
+import scrollBg from "@assets/scroll_nobg.png";
 import continueBtn from "@assets/continue_btn_nobg.png";
 
 // ── Responsive hook ────────────────────────────────────────────────────────
@@ -606,40 +606,24 @@ function InstructionsModal({
              */}
             <button
               onClick={onClose}
-              className="absolute left-1/2 -translate-x-1/2 focus:outline-none"
+              className="absolute left-1/2 focus:outline-none transition-filter duration-150 ease-out hover:brightness-110 active:brightness-90"
               style={{
-                bottom: "13%",
+                bottom: "14%",
                 width: "58%",
                 background: "none",
                 border: "none",
                 padding: 0,
                 cursor: "pointer",
+                transform: "translateX(-50%)",
               }}
               data-testid="btn-dismiss"
               aria-label="I Understand"
-              onMouseEnter={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.transform =
-                  "translateX(-50%) scale(1.06)")
-              }
-              onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.transform =
-                  "translateX(-50%) scale(1)")
-              }
-              onMouseDown={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.transform =
-                  "translateX(-50%) scale(0.97)")
-              }
-              onMouseUp={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.transform =
-                  "translateX(-50%) scale(1.06)")
-              }
             >
               <img
                 src={continueBtn}
                 alt="I Understand"
                 draggable={false}
                 className="w-full h-auto block select-none drop-shadow-lg"
-                style={{ transition: "transform 0.1s" }}
               />
             </button>
           </motion.div>
