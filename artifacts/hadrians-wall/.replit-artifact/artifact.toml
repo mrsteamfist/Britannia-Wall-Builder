@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Hadrian's Wall"
+version = "1.0.0"
+id = "artifacts/hadrians-wall"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25313
+
+[services.development]
+run = "pnpm --filter @workspace/hadrians-wall run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hadrians-wall", "run", "build" ]
+publicDir = "artifacts/hadrians-wall/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25313"
+BASE_PATH = "/"
