@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "KQ4G5bdSqaO4NOaOMf_SE"
+uri = "file://attached_assets/game_board_bg.png"
+type = "image"
+title = "roman fresco hadrians wall game board"
