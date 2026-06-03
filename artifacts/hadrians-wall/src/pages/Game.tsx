@@ -637,7 +637,7 @@ function InstructionsModal({
 export default function Game() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
   const [activeCitizenIdx, setActiveCitizenIdx] = useState<number | null>(null);
 
   const sensors = useSensors(
@@ -664,6 +664,7 @@ export default function Game() {
 
   function handleRestart() {
     dispatch({ type: "RESTART" });
+    setShowInstructions(true);
   }
 
   /* Game feedback flash state (ready for UI wiring) */
