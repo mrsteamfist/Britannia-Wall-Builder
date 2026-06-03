@@ -57,19 +57,7 @@ function DraggableCitizen({ idx }: { idx: number }) {
       className="select-none cursor-grab active:cursor-grabbing"
       data-testid={`citizen-${idx}`}
     >
-      <MeeplePiece className="w-[60px] h-[72px] drop-shadow-md" />
-    </div>
-  );
-}
-
-// ── Non-draggable pending citizen (in Farm or Quarry) ─────────────────────
-function PendingCitizen() {
-  return (
-    <div className="relative select-none">
-      <MeeplePiece className="w-[60px] h-[72px] opacity-60" />
-      <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-600 rounded-full flex items-center justify-center">
-        <span className="text-[7px] text-white font-bold">1</span>
-      </div>
+      <MeeplePiece className="w-[120px] h-[144px] drop-shadow-md" />
     </div>
   );
 }
@@ -340,11 +328,11 @@ function MobileStatStrip({
 // ── Desktop board (landscape image) ───────────────────────────────────────
 function DesktopBoard({ state }: { state: GameStateType }) {
   return (
-    <div className="relative h-full overflow-hidden" style={{ aspectRatio: "1136 / 1024" }}>
+    <div className="relative h-full overflow-hidden" style={{ aspectRatio: "950 / 1024" }}>
       <img
         src={boardDesktop}
         alt="Hadrian's Wall board"
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover object-left"
         draggable={false}
       />
       <div className="absolute inset-0 bg-black/10 pointer-events-none" />
@@ -355,7 +343,7 @@ function DesktopBoard({ state }: { state: GameStateType }) {
           <span className="text-white/40 text-[10px] font-serif italic">No Picts yet</span>
         ) : (
           [...Array(Math.min(state.picts, 6))].map((_, i) => (
-            <PictWarrior key={i} className="w-[60px] h-[72px] drop-shadow" />
+            <PictWarrior key={i} className="w-[120px] h-[144px] drop-shadow" />
           ))
         )}
         {state.picts > 6 && (
@@ -371,7 +359,7 @@ function DesktopBoard({ state }: { state: GameStateType }) {
           </span>
         ) : (
           [...Array(Math.min(state.soldiers, 8))].map((_, i) => (
-            <SoldierPiece key={i} className="w-[60px] h-[72px] drop-shadow" />
+            <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
           ))
         )}
         {state.soldiers > 8 && (
@@ -379,15 +367,11 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DroppableZone>
 
-      {/* Farm droppable 42–57%: shows pending + awaiting */}
+      {/* Farm droppable 42–57%: progress only — citizens return to Town */}
       <DroppableZone id="farm" topPct={42} heightPct={15}>
-        {state.farm === 0 ? (
-          <span className="text-white/30 text-[9px] font-serif italic">
-            Drop 2 citizens → +1 recruit
-          </span>
-        ) : (
-          <PendingCitizen />
-        )}
+        <span className="text-white/40 text-[9px] font-serif italic">
+          {state.farm === 0 ? "Drop 2 citizens → +1 recruit" : `Farming… ${state.farm}/2`}
+        </span>
       </DroppableZone>
 
       {/* Town zone 57–80%: draggable citizens (source) */}
@@ -401,15 +385,11 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DisplayZone>
 
-      {/* Quarry droppable 80–100%: shows pending */}
+      {/* Quarry droppable 80–100%: progress only — citizens return to Town */}
       <DroppableZone id="quarry" topPct={80} heightPct={20}>
-        {state.quarry === 0 ? (
-          <span className="text-white/30 text-[9px] font-serif italic">
-            Drop 2 citizens → +1 wall
-          </span>
-        ) : (
-          <PendingCitizen />
-        )}
+        <span className="text-white/40 text-[9px] font-serif italic">
+          {state.quarry === 0 ? "Drop 2 citizens → +1 wall" : `Quarrying… ${state.quarry}/2`}
+        </span>
       </DroppableZone>
     </div>
   );
@@ -433,7 +413,7 @@ function MobileBoard({ state }: { state: GameStateType }) {
           <span className="text-white/40 text-[9px] font-serif italic">No Picts</span>
         ) : (
           [...Array(Math.min(state.picts, 5))].map((_, i) => (
-            <PictWarrior key={i} className="w-[60px] h-[72px] drop-shadow" />
+            <PictWarrior key={i} className="w-[120px] h-[144px] drop-shadow" />
           ))
         )}
         {state.picts > 5 && <span className="text-destructive font-bold text-xs">+{state.picts - 5}</span>}
@@ -447,7 +427,7 @@ function MobileBoard({ state }: { state: GameStateType }) {
           </span>
         ) : (
           [...Array(Math.min(state.soldiers, 5))].map((_, i) => (
-            <SoldierPiece key={i} className="w-[60px] h-[72px] drop-shadow" />
+            <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
           ))
         )}
         {state.soldiers > 5 && <span className="text-primary text-xs font-bold">+{state.soldiers - 5}</span>}
@@ -455,11 +435,9 @@ function MobileBoard({ state }: { state: GameStateType }) {
 
       {/* Farm 42–60% */}
       <DroppableZone id="farm" topPct={42} heightPct={18}>
-        {state.farm === 0 ? (
-          <span className="text-white/30 text-[8px] font-serif italic">2 → +1 recruit</span>
-        ) : (
-          <PendingCitizen />
-        )}
+        <span className="text-white/40 text-[8px] font-serif italic">
+          {state.farm === 0 ? "2 → +1 recruit" : `Farming… ${state.farm}/2`}
+        </span>
       </DroppableZone>
 
       {/* Town 60–76%: draggable citizens */}
@@ -475,11 +453,9 @@ function MobileBoard({ state }: { state: GameStateType }) {
 
       {/* Quarry 76–100% */}
       <DroppableZone id="quarry" topPct={76} heightPct={24}>
-        {state.quarry === 0 ? (
-          <span className="text-white/30 text-[8px] font-serif italic">2 → +1 wall section</span>
-        ) : (
-          <PendingCitizen />
-        )}
+        <span className="text-white/40 text-[8px] font-serif italic">
+          {state.quarry === 0 ? "2 → +1 wall section" : `Quarrying… ${state.quarry}/2`}
+        </span>
       </DroppableZone>
     </div>
   );
@@ -582,10 +558,10 @@ function InstructionsModal({
                   className="mb-2"
                   style={{ fontSize: "clamp(9px, 1.75vw, 12px)", display: "grid", gap: "4px" }}
                 >
-                  <p><span className="font-bold">Town —</span> Your citizen pool. Drag citizens to any zone.</p>
-                  <p><span className="font-bold">Garrison —</span> Citizen becomes a soldier. Raid (2 Picts): 50 % repel (2 Picts gone) or 50 % fail (soldier + 1 Pict lost).</p>
-                  <p><span className="font-bold">Farm —</span> Send 2 → both return with a new recruit (+3 to Town).</p>
-                  <p><span className="font-bold">Quarry —</span> Send 2 → both return + 1 wall section built.</p>
+                  <p><span className="font-bold">Town —</span> Your citizen pool (max 9). Citizens return here after every assignment.</p>
+                  <p><span className="font-bold">Garrison —</span> Raises a soldier. Raid (2 Picts): 50 % repel (2 Picts gone) or 50 % fail (soldier + 1 Pict lost).</p>
+                  <p><span className="font-bold">Farm —</span> Send 2 → a new recruit joins the Town (+1, capped at 9).</p>
+                  <p><span className="font-bold">Quarry —</span> Send 2 → build 1 wall section.</p>
                 </div>
 
                 {/* Raid callout */}
@@ -754,7 +730,7 @@ export default function Game() {
         {/* Drag overlay */}
         <DragOverlay dropAnimation={null}>
           {activeCitizenIdx !== null && (
-            <MeeplePiece className="w-[72px] h-[88px] drop-shadow-2xl" />
+            <MeeplePiece className="w-[120px] h-[144px] drop-shadow-2xl" />
           )}
         </DragOverlay>
       </DndContext>

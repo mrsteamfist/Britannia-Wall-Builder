@@ -66,7 +66,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const { destination } = action;
       const logs = [...state.battleLog];
 
-      let town = state.town - 1;
+      const MAX_TOWN = 9;
+      // The assigned citizen returns to the Town after issuing the command,
+      // so the Town pool is never drained by assigning (only by raids).
+      let town = state.town;
       let farm = state.farm;
       let quarry = state.quarry;
       let soldiers = state.soldiers;
@@ -101,16 +104,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       // ── Step 2: Zone completions ──────────────────────────────────────
       if (farm >= 2) {
         farm = 0;
-        town += 3; // 2 return + 1 new citizen
-        logs.push('Farm work complete! Two citizens return with a new recruit. (+3 to Town)');
+        if (town < MAX_TOWN) {
+          town = Math.min(MAX_TOWN, town + 1); // a new recruit joins the Town
+          logs.push('Farm work complete! A new recruit joins the Town. (+1)');
+        } else {
+          logs.push(`Farm work complete, but the Town is already full (${MAX_TOWN}).`);
+        }
       }
 
       if (quarry >= 2) {
         quarry = 0;
-        town += 2; // 2 return
         wallSections += 1;
         logs.push(
-          `Wall section ${wallSections}/${state.maxWallSections} complete! Quarry workers return to Town.`
+          `Wall section ${wallSections}/${state.maxWallSections} complete!`
         );
       }
 
@@ -127,17 +133,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             logs.push('💀 RAID FAILED — ' + pick(RAID_LOSS));
           }
         } else {
-          // No soldiers: citizens absorb the blow (priority: farm → town → quarry)
+          // No soldiers: a Town citizen is lost. Farm/Quarry are progress
+          // counters now (citizens return to Town), so they can't be slain.
           picts -= 2;
-          if (farm > 0) {
-            farm -= 1;
-            logs.push('🔥 UNDEFENDED RAID — ' + pick(RAID_UNDEFENDED) + ' (farm worker slain)');
-          } else if (town > 0) {
+          if (town > 0) {
             town -= 1;
             logs.push('🔥 UNDEFENDED RAID — ' + pick(RAID_UNDEFENDED) + ' (town citizen slain)');
-          } else if (quarry > 0) {
-            quarry -= 1;
-            logs.push('🔥 UNDEFENDED RAID — ' + pick(RAID_UNDEFENDED) + ' (quarry worker slain)');
           } else {
             logs.push('🔥 UNDEFENDED RAID — No Romans remain to defend.');
           }
@@ -149,7 +150,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           logs.push('4 PICTS AT THE GATES — Eboracum is overwhelmed. Britannia falls.');
           break;
         }
-        if (town + farm + quarry + soldiers === 0) {
+        if (town + soldiers === 0) {
           status = 'loss';
           logs.push('Every Roman has fallen. The province is lost to the Picts.');
           break;
@@ -167,7 +168,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         if (picts >= 4) {
           status = 'loss';
           logs.push('4 PICTS AT THE GATES — Eboracum is overwhelmed. Britannia falls.');
-        } else if (town + farm + quarry + soldiers === 0) {
+        } else if (town + soldiers === 0) {
           status = 'loss';
           logs.push('Every Roman has fallen. The province is lost.');
         } else if (town === 0) {
