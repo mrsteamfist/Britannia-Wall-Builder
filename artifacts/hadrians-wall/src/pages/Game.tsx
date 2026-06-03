@@ -328,7 +328,7 @@ function MobileStatStrip({
 // ── Desktop board (landscape image) ───────────────────────────────────────
 function DesktopBoard({ state }: { state: GameStateType }) {
   return (
-    <div className="relative h-full overflow-hidden" style={{ aspectRatio: "950 / 1024" }}>
+    <div className="relative h-full overflow-hidden" style={{ aspectRatio: "1082 / 1024" }}>
       <img
         src={boardDesktop}
         alt="Hadrian's Wall board"
@@ -351,8 +351,8 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DisplayZone>
 
-      {/* Garrison droppable 20–42%: shows soldiers */}
-      <DroppableZone id="garrison" topPct={20} heightPct={22}>
+      {/* Garrison droppable: shows soldiers */}
+      <DroppableZone id="garrison" topPct={23} heightPct={22}>
         {state.soldiers === 0 ? (
           <span className="text-white/30 text-[9px] font-serif italic pt-5">
             Drop citizen to enlist as soldier
@@ -367,10 +367,10 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DroppableZone>
 
-      {/* Farm droppable 42–57%: progress only — citizens return to Town */}
-      <DroppableZone id="farm" topPct={42} heightPct={15}>
+      {/* Farm droppable: progress only — workers return to Town */}
+      <DroppableZone id="farm" topPct={45} heightPct={15}>
         <span className="text-white/40 text-[9px] font-serif italic">
-          {state.farm === 0 ? "Drop 2 citizens → +1 recruit" : `Farming… ${state.farm}/2`}
+          {state.farm === 0 ? "Drop 2 citizens → +2 recruits" : `Farming… ${state.farm}/2`}
         </span>
       </DroppableZone>
 
@@ -385,8 +385,8 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DisplayZone>
 
-      {/* Quarry droppable 80–100%: progress only — citizens return to Town */}
-      <DroppableZone id="quarry" topPct={80} heightPct={20}>
+      {/* Quarry droppable: progress only — workers return to Town */}
+      <DroppableZone id="quarry" topPct={82} heightPct={18}>
         <span className="text-white/40 text-[9px] font-serif italic">
           {state.quarry === 0 ? "Drop 2 citizens → +1 wall" : `Quarrying… ${state.quarry}/2`}
         </span>
@@ -436,7 +436,7 @@ function MobileBoard({ state }: { state: GameStateType }) {
       {/* Farm 42–60% */}
       <DroppableZone id="farm" topPct={42} heightPct={18}>
         <span className="text-white/40 text-[8px] font-serif italic">
-          {state.farm === 0 ? "2 → +1 recruit" : `Farming… ${state.farm}/2`}
+          {state.farm === 0 ? "2 → +2 recruits" : `Farming… ${state.farm}/2`}
         </span>
       </DroppableZone>
 
@@ -558,9 +558,9 @@ function InstructionsModal({
                   className="mb-2"
                   style={{ fontSize: "clamp(9px, 1.75vw, 12px)", display: "grid", gap: "4px" }}
                 >
-                  <p><span className="font-bold">Town —</span> Your citizen pool (max 9). Citizens return here after every assignment.</p>
-                  <p><span className="font-bold">Garrison —</span> Raises a soldier. Raid (2 Picts): 50 % repel (2 Picts gone) or 50 % fail (soldier + 1 Pict lost).</p>
-                  <p><span className="font-bold">Farm —</span> Send 2 → a new recruit joins the Town (+1, capped at 9).</p>
+                  <p><span className="font-bold">Town —</span> Your citizen pool (max 9). Farm/Quarry workers return here; soldiers do not.</p>
+                  <p><span className="font-bold">Garrison —</span> A citizen leaves the Town to become a soldier. Raid (2 Picts): 50 % repel (2 Picts gone) or 50 % fail (soldier + 1 Pict lost).</p>
+                  <p><span className="font-bold">Farm —</span> Send 2 → +2 citizens to the Town (capped at 9).</p>
                   <p><span className="font-bold">Quarry —</span> Send 2 → build 1 wall section.</p>
                 </div>
 

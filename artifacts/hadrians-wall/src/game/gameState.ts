@@ -80,6 +80,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       // ── Step 1: Apply the citizen's assignment ────────────────────────
       if (destination === 'garrison') {
         soldiers += 1;
+        town -= 1; // the citizen leaves the Town for good to become a soldier
         logs.push(
           `A citizen enlists — now ${soldiers} soldier${soldiers !== 1 ? 's' : ''} guard the Wall.`
         );
@@ -105,8 +106,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (farm >= 2) {
         farm = 0;
         if (town < MAX_TOWN) {
-          town = Math.min(MAX_TOWN, town + 1); // a new recruit joins the Town
-          logs.push('Farm work complete! A new recruit joins the Town. (+1)');
+          const before = town;
+          town = Math.min(MAX_TOWN, town + 2); // two new recruits join the Town
+          const gained = town - before;
+          logs.push(`Farm work complete! ${gained} recruit${gained !== 1 ? 's' : ''} join the Town. (+${gained})`);
         } else {
           logs.push(`Farm work complete, but the Town is already full (${MAX_TOWN}).`);
         }
