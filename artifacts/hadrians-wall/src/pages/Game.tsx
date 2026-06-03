@@ -164,151 +164,205 @@ function PictMeter({ picts, max = 4 }: { picts: number; max?: number }) {
   );
 }
 
-// ── Stat counter badge ────────────────────────────────────────────────────
-function StatBadge({
-  label,
-  value,
-  accent = false,
-  danger = false,
-}: {
-  label: string;
-  value: number;
-  accent?: boolean;
-  danger?: boolean;
-}) {
-  return (
-    <div
-      className={`flex flex-col items-center border-2 px-3 py-1.5 ${
-        danger ? "border-destructive/70 bg-destructive/10" : accent ? "border-primary/60 bg-primary/10" : "border-border bg-card/60"
-      }`}
-    >
-      <span className={`text-xl md:text-2xl font-serif font-bold ${danger ? "text-destructive" : accent ? "text-primary" : ""}`}>
-        {value}
-      </span>
-      <span className="text-[9px] uppercase tracking-wider opacity-60 font-bold">{label}</span>
-    </div>
-  );
-}
-
-// ── Stats + controls panel ────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────
 type GameStateType = ReturnType<typeof gameReducer>;
 
-function StatsPanel({
+// ── Compact sidebar panel (desktop) ───────────────────────────────────────
+function SidePanel({
   state,
   onRestart,
+  onHelp,
 }: {
   state: GameStateType;
   onRestart: () => void;
+  onHelp: () => void;
 }) {
-  const isDangerous = state.picts >= 3;
-  const noMoves = state.status === 'playing' && state.town === 0;
+  const lastLog = [...state.battleLog].reverse()[0] ?? "";
+  const danger = state.picts >= 3;
 
   return (
-    <div className="flex flex-col gap-3 p-3 md:p-4">
+    <div className="flex flex-col gap-2 p-2 h-full">
 
-      {/* Action hint */}
-      <div className={`text-center text-xs font-serif italic border-2 border-border px-3 py-2 bg-card ${
-        state.status !== 'playing' ? 'opacity-40' : ''
+      {/* Status line */}
+      <p className={`font-serif text-[10px] italic text-center px-1 leading-tight ${
+        danger ? "text-destructive font-semibold" : "opacity-60"
       }`}>
-        {state.status === 'playing'
-          ? state.town > 0
-            ? "Drag a citizen from Town ↑ to Garrison, Farm, or Quarry"
-            : "⚠ No citizens in Town — no moves available"
-          : state.status === 'win'
-            ? "The Wall is built. Britannia is secure."
-            : "Britannia has fallen to the Picts."}
+        {state.status === "win"
+          ? "Roma Victrix! The Wall stands."
+          : state.status === "loss"
+            ? "Britannia is lost."
+            : state.picts >= 2
+              ? "⚠ Raid incoming!"
+              : state.town > 0
+                ? "Drag citizens ↑ to assign"
+                : "Town empty — no moves"}
+      </p>
+
+      {/* 4 counters */}
+      <div className="grid grid-cols-2 gap-1">
+        {[
+          { label: "Town", value: state.town, hi: true, danger: false },
+          { label: "Soldiers", value: state.soldiers, hi: false, danger: false },
+          { label: "Picts", value: state.picts, hi: false, danger: state.picts >= 3 },
+          { label: "Wall", value: `${state.wallSections}/${state.maxWallSections}`, hi: true, danger: false },
+        ].map(({ label, value, hi, danger: d }) => (
+          <div
+            key={label}
+            className={`flex flex-col items-center py-1 border-2 ${
+              d ? "border-destructive/70 bg-destructive/10"
+                : hi ? "border-primary/50 bg-primary/8"
+                  : "border-border bg-card/50"
+            }`}
+          >
+            <span className={`text-lg font-serif font-bold leading-none ${d ? "text-destructive" : hi ? "text-primary" : ""}`}>
+              {value}
+            </span>
+            <span className="text-[8px] uppercase tracking-wider opacity-50 mt-0.5">{label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* Key counters */}
-      <div className="grid grid-cols-4 gap-1.5">
-        <StatBadge label="Town" value={state.town} accent />
-        <StatBadge label="Soldiers" value={state.soldiers} />
-        <StatBadge label="Picts" value={state.picts} danger={state.picts >= 3} />
-        <StatBadge label="Wall" value={state.wallSections} accent />
+      {/* Pict threat dots */}
+      <div className="flex items-center gap-1 justify-center">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={`w-4 h-4 border-2 transition-colors ${
+              i < state.picts
+                ? "bg-destructive border-destructive"
+                : "border-border/50"
+            }`}
+          />
+        ))}
+        <span className={`text-[9px] font-serif ml-1 ${state.picts >= 3 ? "text-destructive animate-pulse font-bold" : "opacity-40"}`}>
+          Picts
+        </span>
       </div>
 
-      {/* Pict danger bar */}
-      <div className={`flex items-center justify-between border-2 px-3 py-2 ${
-        isDangerous ? "border-destructive/60 bg-destructive/5" : "border-border bg-card/40"
-      }`}>
-        <PictMeter picts={state.picts} />
-        {state.picts >= 2 && state.status === 'playing' && (
-          <span className="text-[9px] text-destructive font-bold uppercase tracking-wider animate-pulse">
-            ⚠ Raid!
-          </span>
-        )}
-      </div>
-
-      {/* Wall progress */}
-      <section>
-        <h3 className="text-[10px] font-serif uppercase tracking-widest mb-1 opacity-60">
-          The Wall — {state.wallSections} / {state.maxWallSections}
-        </h3>
-        <div
-          className="flex gap-1 p-2 border-4 border-border bg-card/60 justify-center"
-          data-testid="wall-display"
-        >
+      {/* Wall segments */}
+      <div>
+        <p className="text-[8px] uppercase tracking-widest opacity-40 text-center mb-0.5">The Wall</p>
+        <div className="flex gap-0.5 justify-center" data-testid="wall-display">
           {[...Array(state.maxWallSections)].map((_, i) => (
-            <div key={i} className="w-9 h-12 md:w-11 md:h-14 flex-shrink-0">
-              <WallSegment built={i < state.wallSections} className="w-full h-full text-secondary" />
+            <div key={i} className="w-6 h-8 flex-shrink-0">
+              <WallSegment built={i < state.wallSections} className="w-full h-full" />
             </div>
           ))}
         </div>
-      </section>
-
-      {/* Farm / Quarry state */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="border-2 border-border bg-card/40 p-2 text-center">
-          <div className="text-[9px] uppercase tracking-wider opacity-50 mb-1">Farms</div>
-          <div className="text-lg font-serif font-bold text-primary">{state.farm}/2</div>
-          <div className="text-[9px] opacity-40 font-serif">
-            {state.farm === 0 ? "Send 2 → +3 to Town" : "1 more to recruit!"}
-          </div>
-        </div>
-        <div className="border-2 border-border bg-card/40 p-2 text-center">
-          <div className="text-[9px] uppercase tracking-wider opacity-50 mb-1">Quarry</div>
-          <div className="text-lg font-serif font-bold text-primary">{state.quarry}/2</div>
-          <div className="text-[9px] opacity-40 font-serif">
-            {state.quarry === 0 ? "Send 2 → +1 wall" : "1 more to build!"}
-          </div>
-        </div>
       </div>
 
-      {/* Battle log */}
-      <div className="border-4 border-border bg-card">
-        <div className="p-2 border-b-2 border-border">
-          <h3 className="font-serif uppercase tracking-widest text-[10px]">Annals of Britannia</h3>
-        </div>
-        <ScrollArea className="h-28 md:h-36 p-2">
-          <div className="flex flex-col gap-1">
-            {[...state.battleLog].reverse().map((log, i) => (
-              <p
-                key={i}
-                className={`font-serif ${
-                  i === 0 ? "text-xs font-bold" : "text-[10px] opacity-50"
-                } ${
-                  log.includes("RAID") || log.includes("Pict") || log.includes("falls")
-                    ? i === 0 ? "text-destructive" : ""
-                    : ""
-                }`}
-              >
-                {log}
-              </p>
-            ))}
-          </div>
-        </ScrollArea>
+      {/* Farm / Quarry inline */}
+      <div className="flex gap-1 text-[9px] font-serif justify-center opacity-60">
+        <span>Farm {state.farm}/2</span>
+        <span className="opacity-30">·</span>
+        <span>Quarry {state.quarry}/2</span>
       </div>
 
-      {/* Restart always visible at bottom */}
+      {/* Last log line */}
+      {lastLog && (
+        <p className={`text-[9px] font-serif italic text-center px-1 leading-tight opacity-50 line-clamp-2 ${
+          lastLog.includes("RAID") || lastLog.includes("slain") ? "text-destructive opacity-80" : ""
+        }`}>
+          {lastLog}
+        </p>
+      )}
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Buttons */}
       <Button
         variant="outline"
         size="sm"
-        className="w-full font-serif tracking-wider border-2"
+        className="w-full font-serif tracking-wider border-2 text-xs py-1"
         onClick={onRestart}
         data-testid="btn-restart"
       >
         New Game
       </Button>
+      <button
+        onClick={onHelp}
+        className="text-[9px] font-serif opacity-40 hover:opacity-80 text-center py-0.5"
+      >
+        ? Rules
+      </button>
+    </div>
+  );
+}
+
+// ── Compact mobile stat strip (below board) ────────────────────────────────
+function MobileStatStrip({
+  state,
+  onRestart,
+  onHelp,
+}: {
+  state: GameStateType;
+  onRestart: () => void;
+  onHelp: () => void;
+}) {
+  const lastLog = [...state.battleLog].reverse()[0] ?? "";
+  return (
+    <div className="flex flex-col gap-1.5 px-2 py-2 bg-card border-t-4 border-border">
+      {/* 4 counters in a row */}
+      <div className="grid grid-cols-4 gap-1">
+        {[
+          { label: "Town", value: state.town, danger: false, accent: true },
+          { label: "Soldiers", value: state.soldiers, danger: false, accent: false },
+          { label: "Picts", value: state.picts, danger: state.picts >= 3, accent: false },
+          { label: `${state.wallSections}/6`, value: null, danger: false, accent: true, sub: "Wall" },
+        ].map(({ label, value, danger, accent, sub }) => (
+          <div
+            key={label}
+            className={`flex flex-col items-center py-1 border-2 ${
+              danger ? "border-destructive/70 bg-destructive/10"
+                : accent ? "border-primary/50"
+                  : "border-border"
+            }`}
+          >
+            <span className={`text-base font-serif font-bold leading-none ${danger ? "text-destructive" : accent ? "text-primary" : ""}`}>
+              {value ?? label}
+            </span>
+            <span className="text-[8px] uppercase tracking-wider opacity-40">{sub ?? label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Wall segments */}
+      <div className="flex gap-0.5 justify-center" data-testid="wall-display-mobile">
+        {[...Array(state.maxWallSections)].map((_, i) => (
+          <div key={i} className="w-8 h-10 flex-shrink-0">
+            <WallSegment built={i < state.wallSections} className="w-full h-full" />
+          </div>
+        ))}
+      </div>
+
+      {/* Last log */}
+      {lastLog && (
+        <p className={`text-[9px] font-serif italic text-center opacity-50 leading-tight ${
+          lastLog.includes("RAID") || lastLog.includes("slain") ? "text-destructive opacity-80" : ""
+        }`}>
+          {lastLog}
+        </p>
+      )}
+
+      {/* Actions row */}
+      <div className="flex gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 font-serif text-xs border-2 py-1"
+          onClick={onRestart}
+          data-testid="btn-restart"
+        >
+          New Game
+        </Button>
+        <button
+          onClick={onHelp}
+          className="font-serif text-xs border border-border px-3 opacity-60 hover:opacity-100"
+        >
+          ? Rules
+        </button>
+      </div>
     </div>
   );
 }
@@ -316,7 +370,7 @@ function StatsPanel({
 // ── Desktop board (landscape image) ───────────────────────────────────────
 function DesktopBoard({ state }: { state: GameStateType }) {
   return (
-    <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1136 / 1024" }}>
+    <div className="relative h-full overflow-hidden" style={{ aspectRatio: "1136 / 1024" }}>
       <img
         src={boardDesktop}
         alt="Hadrian's Wall board"
@@ -667,32 +721,19 @@ export default function Game() {
   }
 
   return (
-    <div className="min-h-dvh w-full flex flex-col bg-background text-foreground overflow-x-hidden">
+    <div className="h-dvh w-full flex flex-col bg-background text-foreground overflow-hidden">
 
       {/* ── Header ── */}
-      <header className="px-3 py-2 md:px-5 md:py-3 border-b-4 border-border flex justify-between items-center bg-card shadow-md flex-shrink-0 gap-2">
-        <div className="flex items-center gap-3">
-          <h1 className="text-base md:text-xl font-serif text-primary uppercase tracking-widest font-bold">
-            Hadrian's Wall
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Compact status in header */}
-          <div className="flex gap-1.5 items-center text-xs font-serif">
-            <span className="opacity-60">
-              🧱 {state.wallSections}/{state.maxWallSections}
-            </span>
-            <span className={state.picts >= 3 ? "text-destructive font-bold animate-pulse" : "opacity-60"}>
-              👹 {state.picts}/4
-            </span>
-          </div>
-          <button
-            onClick={() => setShowInstructions(true)}
-            className="text-xs font-serif border border-border px-2 py-1 hover:bg-card/80 opacity-70 hover:opacity-100"
-            data-testid="btn-help"
-          >
-            ? Help
-          </button>
+      <header className="px-3 py-1.5 border-b-2 border-border flex justify-between items-center bg-card flex-shrink-0">
+        <h1 className="text-sm md:text-base font-serif text-primary uppercase tracking-widest font-bold">
+          Hadrian's Wall
+        </h1>
+        <div className="flex gap-1.5 items-center font-serif text-[11px]">
+          <span className={state.picts >= 3 ? "text-destructive font-bold animate-pulse" : "opacity-50"}>
+            👹 {state.picts}/4
+          </span>
+          <span className="opacity-40">·</span>
+          <span className="opacity-50">🧱 {state.wallSections}/{state.maxWallSections}</span>
         </div>
       </header>
 
@@ -703,28 +744,33 @@ export default function Game() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <main className="flex-1 flex flex-col md:flex-row min-h-0">
           {isDesktop ? (
             <>
-              {/* Desktop: landscape board */}
-              <div className="flex-1 flex items-center justify-center bg-stone-950/20 p-3">
-                <div className="w-full max-w-2xl">
-                  <DesktopBoard state={state} />
-                  <p className="text-center text-[10px] font-serif italic opacity-35 mt-1">
-                    Drag citizens from Town to Garrison · Farm · Quarry
-                  </p>
-                </div>
+              {/* Board — fills all remaining space */}
+              <div className="flex-1 min-w-0 flex items-stretch">
+                <DesktopBoard state={state} />
               </div>
-              {/* Desktop: stats right */}
-              <div className="md:w-72 lg:w-80 flex-shrink-0 border-l-4 border-border overflow-y-auto">
-                <StatsPanel state={state} onRestart={handleRestart} />
+              {/* Narrow sidebar */}
+              <div className="w-44 flex-shrink-0 border-l-2 border-border overflow-y-auto">
+                <SidePanel
+                  state={state}
+                  onRestart={handleRestart}
+                  onHelp={() => setShowInstructions(true)}
+                />
               </div>
             </>
           ) : (
-            /* Mobile: portrait board + stats below */
-            <div className="flex flex-col">
-              <MobileBoard state={state} />
-              <StatsPanel state={state} onRestart={handleRestart} />
+            /* Mobile: board then compact strip */
+            <div className="flex flex-col min-h-0">
+              <div className="flex-1 min-h-0">
+                <MobileBoard state={state} />
+              </div>
+              <MobileStatStrip
+                state={state}
+                onRestart={handleRestart}
+                onHelp={() => setShowInstructions(true)}
+              />
             </div>
           )}
         </main>
