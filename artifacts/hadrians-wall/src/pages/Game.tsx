@@ -22,8 +22,8 @@ import { PictWarrior } from "@/components/game/PictWarrior";
 import { MeeplePiece } from "@/components/game/MeeplePiece";
 import boardDesktop from "@assets/board_desktop.png";
 import boardMobile from "@assets/board_mobile.png";
-import scrollBg from "@assets/hwbgimage_1780518925080.png";
-import continueBtn from "@assets/hwintrocontinuebutton_1780518925079.png";
+import scrollBg from "@assets/ChatGPT_Image_Jun_3,_2026,_03_45_44_PM_(1)_1780519577688.png";
+import continueBtn from "@assets/continue_btn_nobg.png";
 
 // ── Responsive hook ────────────────────────────────────────────────────────
 function useMediaQuery(query: string): boolean {
@@ -477,97 +477,169 @@ function InstructionsModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-3"
-          style={{ background: "rgba(0,0,0,0.88)" }}
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.82)" }}
           data-testid="instructions-overlay"
         >
-          {/* Scroll container — intrinsic aspect ratio of the scroll image */}
+          {/*
+           * Scroll container.
+           * The new scroll PNG has a transparent background — the scroll itself
+           * is portrait (≈820×1024 px, ratio ≈0.80). We allow it to grow to
+           * 580 px wide on desktop so the text isn't cramped.
+           */}
           <motion.div
-            initial={{ scale: 0.92, opacity: 0 }}
+            initial={{ scale: 0.93, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.92, opacity: 0 }}
+            exit={{ scale: 0.93, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="relative w-full"
-            style={{ maxWidth: "min(420px, 90vw)", maxHeight: "90vh" }}
+            className="relative"
+            style={{
+              width: "min(580px, 92vw)",
+              /* cap height so the scroll never overflows the viewport */
+              maxHeight: "96vh",
+            }}
           >
-            {/* Scroll background */}
+            {/* ── Scroll frame image ──────────────────────────────────── */}
             <img
               src={scrollBg}
               alt=""
               draggable={false}
-              className="w-full h-auto block select-none"
+              className="w-full h-auto block select-none pointer-events-none"
             />
 
-            {/* Parchment text content — positioned over the scroll body */}
-            {/* The scroll image: usable area ~16–84% wide, ~19–79% tall */}
+            {/*
+             * ── Parchment text area ─────────────────────────────────────
+             * The usable parchment inside the new scroll:
+             *   top rod + eagle  ≈ 11 %
+             *   bottom rod       ≈ 12 %
+             *   left columns     ≈ 13 %
+             *   right columns    ≈ 13 %
+             *
+             * We leave an extra 17 % at the bottom for the stone button so
+             * neither overlaps. Text scrolls internally only if necessary.
+             */}
             <div
               className="absolute overflow-y-auto"
               style={{
-                top: "19%",
-                bottom: "21%",
-                left: "16%",
-                right: "16%",
+                top: "12%",
+                bottom: "29%",   /* button sits in the lower 17 % of parchment */
+                left: "14%",
+                right: "14%",
               }}
             >
-              <div className="font-serif text-[#3b1a09] space-y-2.5 text-[clamp(10px,2.2vw,13px)] leading-snug select-none">
+              <div
+                className="font-serif select-none"
+                style={{ color: "#3b1a09", lineHeight: 1.4 }}
+              >
+                {/* Title */}
+                <h2
+                  className="text-center font-bold tracking-wide mb-2"
+                  style={{ fontSize: "clamp(13px, 2.4vw, 17px)" }}
+                >
+                  Governor's Mandate
+                </h2>
 
-                <p className="font-bold text-[clamp(10px,2.4vw,13px)]">
-                  Goal: Build all 6 wall sections before the Picts overwhelm the province.
+                {/* Goal + mechanic in one block */}
+                <p
+                  className="font-semibold mb-1"
+                  style={{ fontSize: "clamp(10px, 1.85vw, 13px)" }}
+                >
+                  Build all 6 wall sections before the Picts overwhelm the province.
+                </p>
+                <p
+                  className="italic mb-2 opacity-70"
+                  style={{ fontSize: "clamp(9px, 1.65vw, 11px)" }}
+                >
+                  Each citizen you assign to a zone adds 1 Pict to the border.
                 </p>
 
-                <p className="italic opacity-75 text-[clamp(9px,2vw,11px)]">
-                  Every citizen you assign brings 1 Pict to the border.
-                </p>
-
-                <div className="space-y-2 text-[clamp(9px,2vw,12px)]">
-                  <div>
-                    <span className="font-bold">Town —</span>{" "}
-                    Your citizen pool. Drag them to any zone.
-                  </div>
-                  <div>
-                    <span className="font-bold">Garrison —</span>{" "}
-                    Citizen becomes a permanent soldier. Raid (50%): success removes 2 Picts; failure costs 1 soldier &amp; 1 Pict.
-                  </div>
-                  <div>
-                    <span className="font-bold">Farm —</span>{" "}
-                    Send 2 → both return with a new recruit (+3 to Town).
-                  </div>
-                  <div>
-                    <span className="font-bold">Quarry —</span>{" "}
-                    Send 2 → both return and build 1 wall section.
-                  </div>
+                {/* Zone rules — compact */}
+                <div
+                  className="mb-2"
+                  style={{ fontSize: "clamp(9px, 1.75vw, 12px)", display: "grid", gap: "4px" }}
+                >
+                  <p><span className="font-bold">Town —</span> Your citizen pool. Drag citizens to any zone.</p>
+                  <p><span className="font-bold">Garrison —</span> Citizen becomes a soldier. Raid (2 Picts): 50 % repel (2 Picts gone) or 50 % fail (soldier + 1 Pict lost).</p>
+                  <p><span className="font-bold">Farm —</span> Send 2 → both return with a new recruit (+3 to Town).</p>
+                  <p><span className="font-bold">Quarry —</span> Send 2 → both return + 1 wall section built.</p>
                 </div>
 
-                <div className="text-[clamp(9px,1.9vw,11px)] space-y-1 border border-[#8b2020]/40 bg-[#8b2020]/8 px-2 py-1.5">
-                  <p className="font-bold text-[#8b2020]">Raid triggers at 2 Picts:</p>
-                  <p>With soldiers: 50% repel (2 gone) or 50% fail (1 soldier + 1 Pict gone).</p>
-                  <p>No soldiers: 2 Picts raid — 1 citizen slain (Farm → Town → Quarry).</p>
+                {/* Raid callout */}
+                <div
+                  className="border px-2 py-1 mb-1.5"
+                  style={{
+                    fontSize: "clamp(9px, 1.6vw, 11px)",
+                    borderColor: "rgba(139,32,32,0.45)",
+                    background: "rgba(139,32,32,0.06)",
+                  }}
+                >
+                  <span className="font-bold" style={{ color: "#8b2020" }}>No soldier at raid: </span>
+                  2 Picts strike — 1 citizen slain (Farm → Town → Quarry priority).
                 </div>
 
-                <div className="text-[clamp(9px,1.9vw,11px)] border border-[#8b2020]/40 px-2 py-1.5">
-                  <span className="font-bold text-[#8b2020]">Lose if: </span>
+                {/* Loss + tip inline */}
+                <div
+                  className="border px-2 py-1"
+                  style={{
+                    fontSize: "clamp(9px, 1.6vw, 11px)",
+                    borderColor: "rgba(139,32,32,0.40)",
+                  }}
+                >
+                  <span className="font-bold" style={{ color: "#8b2020" }}>Lose if: </span>
                   4 Picts gather · All Romans gone · Town empty
                 </div>
 
-                <p className="italic opacity-60 text-[clamp(8px,1.7vw,10px)]">
-                  Tip: Enlist 1–2 soldiers early to defend your workforce.
+                <p
+                  className="italic opacity-50 mt-1.5"
+                  style={{ fontSize: "clamp(8px, 1.5vw, 10px)" }}
+                >
+                  Tip: Enlist 1–2 soldiers early to protect your workforce from raids.
                 </p>
               </div>
             </div>
 
-            {/* Stone "I Understand" button — sits just below the scroll body */}
+            {/*
+             * ── Stone "I Understand" button ─────────────────────────────
+             * Positioned inside the lower parchment area (above the bottom rod).
+             * The PNG already has a transparent background — no CSS bg needed.
+             * Clickable area matches the image exactly.
+             */}
             <button
               onClick={onClose}
-              className="absolute left-1/2 -translate-x-1/2 transition-transform duration-100 hover:scale-105 active:scale-95 focus:outline-none"
-              style={{ bottom: "4%", width: "60%" }}
+              className="absolute left-1/2 -translate-x-1/2 focus:outline-none"
+              style={{
+                bottom: "13%",
+                width: "58%",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
               data-testid="btn-dismiss"
               aria-label="I Understand"
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.transform =
+                  "translateX(-50%) scale(1.06)")
+              }
+              onMouseLeave={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.transform =
+                  "translateX(-50%) scale(1)")
+              }
+              onMouseDown={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.transform =
+                  "translateX(-50%) scale(0.97)")
+              }
+              onMouseUp={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.transform =
+                  "translateX(-50%) scale(1.06)")
+              }
             >
               <img
                 src={continueBtn}
                 alt="I Understand"
                 draggable={false}
-                className="w-full h-auto block drop-shadow-xl select-none"
+                className="w-full h-auto block select-none drop-shadow-lg"
+                style={{ transition: "transform 0.1s" }}
               />
             </button>
           </motion.div>
