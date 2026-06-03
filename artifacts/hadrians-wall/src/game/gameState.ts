@@ -68,7 +68,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const newTroops = state.garrisonTroops + recruit;
       const newPictAttack = state.pictAttack + 1;
 
-      let newStatus = state.status;
+      let newStatus: GameState['status'] = state.status;
       if (newWallPieces >= state.maxWallPieces) {
         newStatus = 'win';
       } else if (newHealth <= 0) {
