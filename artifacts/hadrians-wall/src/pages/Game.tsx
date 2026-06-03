@@ -57,7 +57,7 @@ function DraggableCitizen({ idx }: { idx: number }) {
       className="select-none cursor-grab active:cursor-grabbing"
       data-testid={`citizen-${idx}`}
     >
-      <MeeplePiece className="w-10 h-12 drop-shadow-md" />
+      <MeeplePiece className="w-12 h-14 drop-shadow-md" />
     </div>
   );
 }
@@ -66,7 +66,7 @@ function DraggableCitizen({ idx }: { idx: number }) {
 function PendingCitizen() {
   return (
     <div className="relative select-none">
-      <MeeplePiece className="w-10 h-12 opacity-60" />
+      <MeeplePiece className="w-12 h-14 opacity-60" />
       <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-600 rounded-full flex items-center justify-center">
         <span className="text-[7px] text-white font-bold">1</span>
       </div>
@@ -95,7 +95,7 @@ function DroppableZone({
     <div
       ref={setNodeRef}
       style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-      className={`absolute inset-x-0 transition-all duration-150 flex flex-wrap gap-1 items-center justify-center p-1 ${
+      className={`absolute inset-x-0 transition-all duration-150 flex flex-wrap gap-3 items-center justify-center p-1 ${
         isOver
           ? "bg-amber-100/30 outline outline-2 outline-amber-300/80 outline-offset-[-2px]"
           : "bg-transparent hover:bg-white/10"
@@ -127,7 +127,7 @@ function DisplayZone({
   return (
     <div
       style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-      className="absolute inset-x-0 flex flex-wrap gap-1 items-center justify-center p-1 pointer-events-none"
+      className="absolute inset-x-0 flex flex-wrap gap-3 items-center justify-center p-1 pointer-events-none"
     >
       {children}
     </div>
@@ -354,12 +354,12 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         {state.picts === 0 ? (
           <span className="text-white/40 text-[10px] font-serif italic">No Picts yet</span>
         ) : (
-          [...Array(Math.min(state.picts, 8))].map((_, i) => (
-            <PictWarrior key={i} className="w-9 h-11 drop-shadow" />
+          [...Array(Math.min(state.picts, 6))].map((_, i) => (
+            <PictWarrior key={i} className="w-11 h-14 drop-shadow" />
           ))
         )}
-        {state.picts > 8 && (
-          <span className="text-destructive font-bold text-sm">+{state.picts - 8}</span>
+        {state.picts > 6 && (
+          <span className="text-destructive font-bold text-sm">+{state.picts - 6}</span>
         )}
       </DisplayZone>
 
@@ -370,12 +370,12 @@ function DesktopBoard({ state }: { state: GameStateType }) {
             Drop citizen to enlist as soldier
           </span>
         ) : (
-          [...Array(Math.min(state.soldiers, 12))].map((_, i) => (
-            <SoldierPiece key={i} className="w-8 h-10 drop-shadow" />
+          [...Array(Math.min(state.soldiers, 8))].map((_, i) => (
+            <SoldierPiece key={i} className="w-11 h-14 drop-shadow" />
           ))
         )}
-        {state.soldiers > 12 && (
-          <span className="text-primary text-xs font-bold">+{state.soldiers - 12}</span>
+        {state.soldiers > 8 && (
+          <span className="text-primary text-xs font-bold">+{state.soldiers - 8}</span>
         )}
       </DroppableZone>
 
@@ -432,11 +432,11 @@ function MobileBoard({ state }: { state: GameStateType }) {
         {state.picts === 0 ? (
           <span className="text-white/40 text-[9px] font-serif italic">No Picts</span>
         ) : (
-          [...Array(Math.min(state.picts, 6))].map((_, i) => (
-            <PictWarrior key={i} className="w-8 h-10 drop-shadow" />
+          [...Array(Math.min(state.picts, 5))].map((_, i) => (
+            <PictWarrior key={i} className="w-10 h-12 drop-shadow" />
           ))
         )}
-        {state.picts > 6 && <span className="text-destructive font-bold text-xs">+{state.picts - 6}</span>}
+        {state.picts > 5 && <span className="text-destructive font-bold text-xs">+{state.picts - 5}</span>}
       </DisplayZone>
 
       {/* Garrison 20–42% */}
@@ -446,11 +446,11 @@ function MobileBoard({ state }: { state: GameStateType }) {
             Drop to enlist soldier
           </span>
         ) : (
-          [...Array(Math.min(state.soldiers, 8))].map((_, i) => (
-            <SoldierPiece key={i} className="w-8 h-10 drop-shadow" />
+          [...Array(Math.min(state.soldiers, 5))].map((_, i) => (
+            <SoldierPiece key={i} className="w-10 h-12 drop-shadow" />
           ))
         )}
-        {state.soldiers > 8 && <span className="text-primary text-xs font-bold">+{state.soldiers - 8}</span>}
+        {state.soldiers > 5 && <span className="text-primary text-xs font-bold">+{state.soldiers - 5}</span>}
       </DroppableZone>
 
       {/* Farm 42–60% */}
@@ -754,7 +754,7 @@ export default function Game() {
         {/* Drag overlay */}
         <DragOverlay dropAnimation={null}>
           {activeCitizenIdx !== null && (
-            <MeeplePiece className="w-14 h-16 drop-shadow-2xl" />
+            <MeeplePiece className="w-16 h-20 drop-shadow-2xl" />
           )}
         </DragOverlay>
       </DndContext>
