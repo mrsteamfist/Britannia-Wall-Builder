@@ -154,6 +154,36 @@ type DyingPiece = {
   zone: "garrison" | "town";
 };
 
+type RaidTarget = "garrison" | "town" | "border";
+
+type PendingRaid = {
+  events: FloatEvent[];
+  dying: DyingPiece[];
+  target: RaidTarget;
+};
+
+// ── Pict raid animation — warrior slides to attack zone then retreats ──────
+function RaidAnimationOverlay({ target, onDone }: { target: RaidTarget; onDone: () => void }) {
+  const startTop = "6%";
+  const peakTop = target === "town" ? "62%" : target === "garrison" ? "24%" : "17%";
+
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 46, pointerEvents: "none" }}>
+      <motion.div
+        style={{ position: "absolute", left: "38%" }}
+        initial={{ top: startTop, opacity: 1 }}
+        animate={{ top: [startTop, peakTop, startTop], opacity: [1, 1, 0.6] }}
+        transition={{ duration: 0.85, times: [0, 0.5, 1], ease: ["easeIn", "easeOut"] }}
+        onAnimationComplete={onDone}
+      >
+        <div style={{ filter: "drop-shadow(0 0 14px rgba(220,38,38,0.9))" }}>
+          <PictWarrior className="w-[120px] h-[144px]" />
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ── Floating raid label ────────────────────────────────────────────────────
 function FloatingLabel({ event, onDone }: { event: FloatEvent; onDone: (id: string) => void }) {
   const color =
@@ -406,6 +436,9 @@ function DesktopBoard({
   dyingPieces,
   onFloatDone,
   onDyingDone,
+  raidAnim,
+  isAnimating,
+  onRaidAnimDone,
 }: {
   state: GameStateType;
   isDragging: boolean;
@@ -414,6 +447,9 @@ function DesktopBoard({
   dyingPieces: DyingPiece[];
   onFloatDone: (id: string) => void;
   onDyingDone: (id: string) => void;
+  raidAnim: RaidTarget | null;
+  isAnimating: boolean;
+  onRaidAnimDone: () => void;
 }) {
   const controls = useAnimation();
   const prevShakeRef = useRef(0);
@@ -528,6 +564,14 @@ function DesktopBoard({
       {floatEvents.map((e) => (
         <FloatingLabel key={e.id} event={e} onDone={onFloatDone} />
       ))}
+
+      {/* ── Pict attack animation ── */}
+      {raidAnim && <RaidAnimationOverlay target={raidAnim} onDone={onRaidAnimDone} />}
+
+      {/* ── Interaction blocker during animation ── */}
+      {isAnimating && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 30, cursor: "wait" }} />
+      )}
     </motion.div>
   );
 }
@@ -541,6 +585,9 @@ function MobileBoard({
   dyingPieces,
   onFloatDone,
   onDyingDone,
+  raidAnim,
+  isAnimating,
+  onRaidAnimDone,
 }: {
   state: GameStateType;
   isDragging: boolean;
@@ -549,6 +596,9 @@ function MobileBoard({
   dyingPieces: DyingPiece[];
   onFloatDone: (id: string) => void;
   onDyingDone: (id: string) => void;
+  raidAnim: RaidTarget | null;
+  isAnimating: boolean;
+  onRaidAnimDone: () => void;
 }) {
   const controls = useAnimation();
   const prevShakeRef = useRef(0);
@@ -659,6 +709,14 @@ function MobileBoard({
       {floatEvents.map((e) => (
         <FloatingLabel key={e.id} event={e} onDone={onFloatDone} />
       ))}
+
+      {/* Pict attack animation */}
+      {raidAnim && <RaidAnimationOverlay target={raidAnim} onDone={onRaidAnimDone} />}
+
+      {/* Interaction blocker during animation */}
+      {isAnimating && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 30, cursor: "wait" }} />
+      )}
     </motion.div>
   );
 }
@@ -881,6 +939,8 @@ export default function Game() {
   const [shakeKey, setShakeKey] = useState(0);
   const [floatEvents, setFloatEvents] = useState<FloatEvent[]>([]);
   const [dyingPieces, setDyingPieces] = useState<DyingPiece[]>([]);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [pendingRaid, setPendingRaid] = useState<PendingRaid | null>(null);
   const eventCounter = useRef(0);
   const getId = () => String(++eventCounter.current);
 
@@ -933,6 +993,8 @@ export default function Game() {
     dispatch({ type: "RESTART" });
     setFloatEvents([]);
     setDyingPieces([]);
+    setPendingRaid(null);
+    setIsAnimating(false);
     setShowInstructions(true);
   }
 
@@ -951,19 +1013,22 @@ export default function Game() {
     if (hasRaid) {
       const evts: FloatEvent[] = [];
       const dying: DyingPiece[] = [];
+      let target: RaidTarget = "border";
 
       evts.push({ id: getId(), text: "Raid!", topPct: 5, kind: "warning" });
 
-      // Soldier lost
+      // Soldier lost — pict reached garrison
       if (state.soldiers < prev.soldiers) {
         evts.push({ id: getId(), text: "Soldier lost!", topPct: 31, kind: "danger" });
         dying.push({ id: getId(), zone: "garrison" });
+        target = "garrison";
       }
 
-      // Citizen slain by raid (🔥 in new log entries)
+      // Citizen slain by raid (🔥 in new log entries) — pict broke through to town
       if (newLogs.some((l) => l.includes("🔥"))) {
         evts.push({ id: getId(), text: "Citizen slain!", topPct: 66, kind: "danger" });
         dying.push({ id: getId(), zone: "town" });
+        target = "town";
       }
 
       // Pict driven back: expected picts = prev.picts + 1 (action), if actual is less, a pict fled
@@ -971,9 +1036,9 @@ export default function Game() {
         evts.push({ id: getId(), text: "Pict driven back!", topPct: 14, kind: "success" });
       }
 
-      setShakeKey((k) => k + 1);
-      setFloatEvents((e) => [...e, ...evts]);
-      if (dying.length) setDyingPieces((d) => [...d, ...dying]);
+      // Trigger animation first; effects fire after animation completes
+      setPendingRaid({ events: evts, dying, target });
+      setIsAnimating(true);
     }
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -981,6 +1046,18 @@ export default function Game() {
   useEffect(() => {
     prevRef.current = state;
   }, [state]);
+
+  const handleRaidAnimDone = useCallback(() => {
+    setPendingRaid((pr) => {
+      if (pr) {
+        setShakeKey((k) => k + 1);
+        setFloatEvents((e) => [...e, ...pr.events]);
+        if (pr.dying.length) setDyingPieces((d) => [...d, ...pr.dying]);
+      }
+      return null;
+    });
+    setIsAnimating(false);
+  }, []);
 
   const handleFloatDone = useCallback((id: string) => {
     setFloatEvents((e) => e.filter((ev) => ev.id !== id));
@@ -1010,6 +1087,9 @@ export default function Game() {
                 dyingPieces={dyingPieces}
                 onFloatDone={handleFloatDone}
                 onDyingDone={handleDyingDone}
+                raidAnim={pendingRaid?.target ?? null}
+                isAnimating={isAnimating}
+                onRaidAnimDone={handleRaidAnimDone}
               />
               {/* Transparent floating sidebar */}
               <div className="absolute top-3 right-3 w-44 overflow-y-auto max-h-[95%]">
@@ -1031,6 +1111,9 @@ export default function Game() {
                   dyingPieces={dyingPieces}
                   onFloatDone={handleFloatDone}
                   onDyingDone={handleDyingDone}
+                  raidAnim={pendingRaid?.target ?? null}
+                  isAnimating={isAnimating}
+                  onRaidAnimDone={handleRaidAnimDone}
                 />
               </div>
               <MobileStatStrip
