@@ -172,8 +172,8 @@ function RaidAnimationOverlay({ target, onDone }: { target: RaidTarget; onDone: 
       <motion.div
         style={{ position: "absolute", left: "38%" }}
         initial={{ top: startTop, opacity: 1 }}
-        animate={{ top: [startTop, peakTop, startTop], opacity: [1, 1, 0.6] }}
-        transition={{ duration: 0.85, times: [0, 0.5, 1], ease: ["easeIn", "easeOut"] }}
+        animate={{ top: peakTop, opacity: [1, 1, 0] }}
+        transition={{ duration: 0.45, times: [0, 0.65, 1], ease: "easeIn" }}
         onAnimationComplete={onDone}
       >
         <div style={{ filter: "drop-shadow(0 0 14px rgba(220,38,38,0.9))" }}>
@@ -495,7 +495,7 @@ function DesktopBoard({
           gap: "3px",
           zIndex: 8,
           pointerEvents: "none",
-          width: "44%",
+          width: "48.4%",
         }}
         data-testid="wall-display"
       >
@@ -521,7 +521,7 @@ function DesktopBoard({
       </DisplayZone>
 
       {/* Garrison droppable 23–45% */}
-      <DroppableZone id="garrison" topPct={23} heightPct={22} isDragging={isDragging} isValid={validZones.garrison}>
+      <DroppableZone id="garrison" topPct={23} heightPct={22} isDragging={isDragging} isValid={validZones.garrison} className="!items-end pb-2">
         {[...Array(Math.min(state.soldiers, 8))].map((_, i) => (
           <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
         ))}
@@ -642,7 +642,7 @@ function MobileBoard({
           transform: "translateX(-50%)",
           display: "flex",
           gap: "2px",
-          width: "80%",
+          width: "88%",
           zIndex: 8,
           pointerEvents: "none",
         }}
@@ -668,7 +668,7 @@ function MobileBoard({
       </DisplayZone>
 
       {/* Garrison 20–42% */}
-      <DroppableZone id="garrison" topPct={20} heightPct={22} isDragging={isDragging} isValid={validZones.garrison}>
+      <DroppableZone id="garrison" topPct={20} heightPct={22} isDragging={isDragging} isValid={validZones.garrison} className="!items-end pb-2">
         {[...Array(Math.min(state.soldiers, 5))].map((_, i) => (
           <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
         ))}
