@@ -70,30 +70,49 @@ function DroppableZone({
   children,
   topPct,
   heightPct,
+  isDragging,
+  isValid,
   className = "",
 }: {
   id: DropZoneId;
   children: React.ReactNode;
   topPct: number;
   heightPct: number;
+  isDragging: boolean;
+  isValid: boolean;
   className?: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+
+  let zoneClass = "";
+  if (isDragging) {
+    if (!isValid) {
+      zoneClass = "ring-1 ring-inset ring-stone-600/20 bg-black/20 opacity-50";
+    } else if (isOver) {
+      zoneClass =
+        "ring-4 ring-inset ring-amber-300 bg-amber-400/30 shadow-inner shadow-amber-200/50";
+    } else {
+      zoneClass =
+        "ring-2 ring-inset ring-amber-400/70 bg-amber-500/12 animate-pulse";
+    }
+  } else {
+    zoneClass = "ring-1 ring-inset ring-white/15 bg-transparent";
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-      className={`absolute inset-x-0 transition-all duration-150 flex flex-wrap gap-3 items-center justify-center p-1 ${
-        isOver
-          ? "bg-amber-100/30 outline outline-2 outline-amber-300/80 outline-offset-[-2px]"
-          : "bg-transparent hover:bg-white/10"
-      } ${className}`}
+      className={`absolute inset-x-0 transition-all duration-150 flex flex-wrap gap-3 items-center justify-center p-1 ${zoneClass} ${className}`}
       data-testid={`zone-${id}`}
     >
       {children}
-      {isOver && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-white text-[10px] font-serif font-bold tracking-wide opacity-90 bg-black/50 px-2 py-1">
+      {isOver && isValid && (
+        <div className="absolute inset-0 flex items-end justify-center pb-1.5 pointer-events-none">
+          <span
+            className="text-amber-100 text-[9px] font-serif font-bold tracking-widest uppercase"
+            style={{ textShadow: "0 0 8px rgba(0,0,0,0.9), 0 1px 2px rgba(0,0,0,1)" }}
+          >
             Release to assign
           </span>
         </div>
@@ -125,6 +144,19 @@ function DisplayZone({
 // ── Types ─────────────────────────────────────────────────────────────────
 type GameStateType = ReturnType<typeof gameReducer>;
 
+// ── Atmospheric status text ────────────────────────────────────────────────
+function getStatusText(state: GameStateType) {
+  if (state.status === "win") return "Roma Victrix! The Wall stands eternal.";
+  if (state.status === "loss") return "Britannia has fallen to the north.";
+  if (state.picts >= 5) return "⚠⚠ The north is aflame — disaster looms!";
+  if (state.picts >= 4) return "⚠ Barbarians mass at the gates!";
+  if (state.picts >= 3) return "Unrest stirs across the frontier.";
+  if (state.picts >= 2) return "A shadow moves in the northern hills.";
+  if (state.picts >= 1) return "A scout has been spotted.";
+  if (state.town === 0) return "The Town is empty — no moves remain.";
+  return "Drag a citizen upward to issue orders.";
+}
+
 // ── Compact sidebar panel (desktop) ───────────────────────────────────────
 function SidePanel({
   state,
@@ -136,39 +168,32 @@ function SidePanel({
   onHelp: () => void;
 }) {
   const lastLog = [...state.battleLog].reverse()[0] ?? "";
-  const danger = state.picts >= 3;
+  const danger = state.picts >= 4;
+  const statusText = getStatusText(state);
 
   return (
-    <div className="flex flex-col gap-2 p-2 h-full">
+    <div className="flex flex-col gap-2 p-2 h-full min-h-0">
 
-      {/* Status line */}
-      <p className={`font-serif text-[10px] italic text-center px-1 leading-tight ${
-        danger ? "text-destructive font-semibold" : "opacity-60"
-      }`}>
-        {state.status === "win"
-          ? "Roma Victrix! The Wall stands."
-          : state.status === "loss"
-            ? "Britannia is lost."
-            : state.picts >= 2
-              ? "⚠ Raid incoming!"
-              : state.town > 0
-                ? "Drag citizens ↑ to assign"
-                : "Town empty — no moves"}
-      </p>
+      {/* Title */}
+      <h1 className="font-serif font-bold text-center tracking-widest uppercase text-primary text-xs leading-tight pt-0.5">
+        Hadrian's Wall
+      </h1>
+
+      <div className="border-t border-border/40" />
 
       {/* 4 counters */}
       <div className="grid grid-cols-2 gap-1">
         {[
           { label: "Town", value: state.town, hi: true, danger: false },
           { label: "Soldiers", value: state.soldiers, hi: false, danger: false },
-          { label: "Picts", value: state.picts, hi: false, danger: state.picts >= 3 },
-          { label: "Wall", value: `${state.wallSections}/${state.maxWallSections}`, hi: true, danger: false },
+          { label: "Picts", value: `${state.picts}/6`, hi: false, danger: state.picts >= 4 },
+          { label: "Wall", value: `${state.wallSections}/6`, hi: true, danger: false },
         ].map(({ label, value, hi, danger: d }) => (
           <div
             key={label}
             className={`flex flex-col items-center py-1 border-2 ${
               d ? "border-destructive/70 bg-destructive/10"
-                : hi ? "border-primary/50 bg-primary/8"
+                : hi ? "border-primary/50 bg-primary/5"
                   : "border-border bg-card/50"
             }`}
           >
@@ -180,26 +205,9 @@ function SidePanel({
         ))}
       </div>
 
-      {/* Pict threat dots */}
-      <div className="flex items-center gap-1 justify-center">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className={`w-4 h-4 border-2 transition-colors ${
-              i < state.picts
-                ? "bg-destructive border-destructive"
-                : "border-border/50"
-            }`}
-          />
-        ))}
-        <span className={`text-[9px] font-serif ml-1 ${state.picts >= 3 ? "text-destructive animate-pulse font-bold" : "opacity-40"}`}>
-          Picts
-        </span>
-      </div>
-
       {/* Wall segments */}
       <div>
-        <p className="text-[8px] uppercase tracking-widest opacity-40 text-center mb-0.5">The Wall</p>
+        <p className="text-[8px] uppercase tracking-widest opacity-30 text-center mb-0.5">The Wall</p>
         <div className="flex gap-0.5 justify-center" data-testid="wall-display">
           {[...Array(state.maxWallSections)].map((_, i) => (
             <div key={i} className="w-6 h-8 flex-shrink-0">
@@ -209,23 +217,22 @@ function SidePanel({
         </div>
       </div>
 
-      {/* Farm / Quarry inline */}
-      <div className="flex gap-1 text-[9px] font-serif justify-center opacity-60">
-        <span>Farm {state.farm}/2</span>
-        <span className="opacity-30">·</span>
-        <span>Quarry {state.quarry}/2</span>
-      </div>
+      {/* Status */}
+      <p className={`font-serif text-[10px] italic text-center px-1 leading-tight ${
+        danger ? "text-destructive font-semibold" : "opacity-60"
+      }`}>
+        {statusText}
+      </p>
 
       {/* Last log line */}
       {lastLog && (
         <p className={`text-[9px] font-serif italic text-center px-1 leading-tight opacity-50 line-clamp-2 ${
-          lastLog.includes("RAID") || lastLog.includes("slain") ? "text-destructive opacity-80" : ""
+          lastLog.includes("RAID") || lastLog.includes("slain") || lastLog.includes("🔥") ? "text-destructive opacity-80" : ""
         }`}>
           {lastLog}
         </p>
       )}
 
-      {/* Spacer */}
       <div className="flex-1" />
 
       {/* Buttons */}
@@ -240,9 +247,9 @@ function SidePanel({
       </Button>
       <button
         onClick={onHelp}
-        className="text-[9px] font-serif opacity-40 hover:opacity-80 text-center py-0.5"
+        className="text-[9px] font-serif opacity-40 hover:opacity-80 text-center py-0.5 tracking-wide"
       >
-        ? Rules
+        Rules
       </button>
     </div>
   );
@@ -259,16 +266,23 @@ function MobileStatStrip({
   onHelp: () => void;
 }) {
   const lastLog = [...state.battleLog].reverse()[0] ?? "";
+  const statusText = getStatusText(state);
   return (
     <div className="flex flex-col gap-1.5 px-2 py-2 bg-card border-t-4 border-border">
+
+      {/* Title row */}
+      <h1 className="font-serif font-bold text-center tracking-widest uppercase text-primary text-[11px] leading-none pb-0.5">
+        Hadrian's Wall
+      </h1>
+
       {/* 4 counters in a row */}
       <div className="grid grid-cols-4 gap-1">
         {[
           { label: "Town", value: state.town, danger: false, accent: true },
           { label: "Soldiers", value: state.soldiers, danger: false, accent: false },
-          { label: "Picts", value: state.picts, danger: state.picts >= 3, accent: false },
-          { label: `${state.wallSections}/6`, value: null, danger: false, accent: true, sub: "Wall" },
-        ].map(({ label, value, danger, accent, sub }) => (
+          { label: "Picts", value: `${state.picts}/6`, danger: state.picts >= 4, accent: false },
+          { label: "Wall", value: `${state.wallSections}/6`, danger: false, accent: true },
+        ].map(({ label, value, danger, accent }) => (
           <div
             key={label}
             className={`flex flex-col items-center py-1 border-2 ${
@@ -278,9 +292,9 @@ function MobileStatStrip({
             }`}
           >
             <span className={`text-base font-serif font-bold leading-none ${danger ? "text-destructive" : accent ? "text-primary" : ""}`}>
-              {value ?? label}
+              {value}
             </span>
-            <span className="text-[8px] uppercase tracking-wider opacity-40">{sub ?? label}</span>
+            <span className="text-[8px] uppercase tracking-wider opacity-40">{label}</span>
           </div>
         ))}
       </div>
@@ -294,10 +308,15 @@ function MobileStatStrip({
         ))}
       </div>
 
-      {/* Last log */}
+      {/* Status + last log */}
+      <p className={`text-[9px] font-serif italic text-center opacity-60 leading-tight ${
+        state.picts >= 4 ? "text-destructive opacity-80 font-semibold" : ""
+      }`}>
+        {statusText}
+      </p>
       {lastLog && (
         <p className={`text-[9px] font-serif italic text-center opacity-50 leading-tight ${
-          lastLog.includes("RAID") || lastLog.includes("slain") ? "text-destructive opacity-80" : ""
+          lastLog.includes("🔥") || lastLog.includes("slain") ? "text-destructive opacity-80" : ""
         }`}>
           {lastLog}
         </p>
@@ -316,9 +335,9 @@ function MobileStatStrip({
         </Button>
         <button
           onClick={onHelp}
-          className="font-serif text-xs border border-border px-3 opacity-60 hover:opacity-100"
+          className="font-serif text-xs border border-border px-3 opacity-60 hover:opacity-100 tracking-wide"
         >
-          ? Rules
+          Rules
         </button>
       </div>
     </div>
@@ -326,7 +345,13 @@ function MobileStatStrip({
 }
 
 // ── Desktop board (landscape image) ───────────────────────────────────────
-function DesktopBoard({ state }: { state: GameStateType }) {
+function DesktopBoard({ state, isDragging }: { state: GameStateType; isDragging: boolean }) {
+  const validZones = {
+    garrison: state.town >= 1,
+    farm: state.town >= 1,
+    quarry: state.town >= 2,
+  };
+
   return (
     <div className="relative h-full overflow-hidden" style={{ aspectRatio: "1082 / 1024" }}>
       <img
@@ -335,12 +360,12 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         className="absolute inset-0 w-full h-full object-cover object-left"
         draggable={false}
       />
-      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/5 pointer-events-none" />
 
-      {/* Pict Raiders zone 0–20%: display Pict warriors */}
-      <DisplayZone topPct={0} heightPct={20}>
+      {/* Pict Raiders 0–23% */}
+      <DisplayZone topPct={0} heightPct={23}>
         {state.picts === 0 ? (
-          <span className="text-white/40 text-[10px] font-serif italic">No Picts yet</span>
+          <span className="text-white/30 text-[10px] font-serif italic">No Picts yet</span>
         ) : (
           [...Array(Math.min(state.picts, 6))].map((_, i) => (
             <PictWarrior key={i} className="w-[120px] h-[144px] drop-shadow" />
@@ -351,8 +376,8 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DisplayZone>
 
-      {/* Garrison droppable: shows soldiers */}
-      <DroppableZone id="garrison" topPct={23} heightPct={22}>
+      {/* Garrison droppable 23–45% */}
+      <DroppableZone id="garrison" topPct={23} heightPct={22} isDragging={isDragging} isValid={validZones.garrison}>
         {[...Array(Math.min(state.soldiers, 8))].map((_, i) => (
           <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
         ))}
@@ -361,15 +386,15 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DroppableZone>
 
-      {/* Farm droppable: ghost workers */}
-      <DroppableZone id="farm" topPct={45} heightPct={15}>
-        {[...Array(state.farm)].map((_, i) => (
-          <MeeplePiece key={i} className="w-[100px] h-[120px] opacity-50 drop-shadow" />
-        ))}
+      {/* Farm droppable 45–60%: ghost worker if last action was farm */}
+      <DroppableZone id="farm" topPct={45} heightPct={15} isDragging={isDragging} isValid={validZones.farm}>
+        {state.lastAction === "farm" && (
+          <MeeplePiece className="w-[100px] h-[120px] opacity-45 drop-shadow" />
+        )}
       </DroppableZone>
 
-      {/* Town zone 57–80%: draggable citizens (source) */}
-      <DisplayZone topPct={57} heightPct={23}>
+      {/* Town zone 60–80%: draggable citizens (source) */}
+      <DisplayZone topPct={60} heightPct={20}>
         {state.town === 0 ? (
           <span className="text-white/40 text-[9px] font-serif italic">Town empty</span>
         ) : (
@@ -379,18 +404,24 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DisplayZone>
 
-      {/* Quarry droppable: ghost workers */}
-      <DroppableZone id="quarry" topPct={82} heightPct={18}>
-        {[...Array(state.quarry)].map((_, i) => (
-          <MeeplePiece key={i} className="w-[100px] h-[120px] opacity-50 drop-shadow" />
-        ))}
+      {/* Quarry droppable 82–100%: ghost worker if last action was quarry */}
+      <DroppableZone id="quarry" topPct={82} heightPct={18} isDragging={isDragging} isValid={validZones.quarry}>
+        {state.lastAction === "quarry" && (
+          <MeeplePiece className="w-[100px] h-[120px] opacity-45 drop-shadow" />
+        )}
       </DroppableZone>
     </div>
   );
 }
 
 // ── Mobile board (portrait image) ─────────────────────────────────────────
-function MobileBoard({ state }: { state: GameStateType }) {
+function MobileBoard({ state, isDragging }: { state: GameStateType; isDragging: boolean }) {
+  const validZones = {
+    garrison: state.town >= 1,
+    farm: state.town >= 1,
+    quarry: state.town >= 2,
+  };
+
   return (
     <div className="relative w-full" style={{ aspectRatio: "400 / 1024" }}>
       <img
@@ -414,7 +445,7 @@ function MobileBoard({ state }: { state: GameStateType }) {
       </DisplayZone>
 
       {/* Garrison 20–42% */}
-      <DroppableZone id="garrison" topPct={20} heightPct={22}>
+      <DroppableZone id="garrison" topPct={20} heightPct={22} isDragging={isDragging} isValid={validZones.garrison}>
         {[...Array(Math.min(state.soldiers, 5))].map((_, i) => (
           <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
         ))}
@@ -422,10 +453,10 @@ function MobileBoard({ state }: { state: GameStateType }) {
       </DroppableZone>
 
       {/* Farm 42–60% */}
-      <DroppableZone id="farm" topPct={42} heightPct={18}>
-        {[...Array(state.farm)].map((_, i) => (
-          <MeeplePiece key={i} className="w-[90px] h-[108px] opacity-50 drop-shadow" />
-        ))}
+      <DroppableZone id="farm" topPct={42} heightPct={18} isDragging={isDragging} isValid={validZones.farm}>
+        {state.lastAction === "farm" && (
+          <MeeplePiece className="w-[90px] h-[108px] opacity-45 drop-shadow" />
+        )}
       </DroppableZone>
 
       {/* Town 60–76%: draggable citizens */}
@@ -440,12 +471,67 @@ function MobileBoard({ state }: { state: GameStateType }) {
       </DisplayZone>
 
       {/* Quarry 76–100% */}
-      <DroppableZone id="quarry" topPct={76} heightPct={24}>
-        {[...Array(state.quarry)].map((_, i) => (
-          <MeeplePiece key={i} className="w-[90px] h-[108px] opacity-50 drop-shadow" />
-        ))}
+      <DroppableZone id="quarry" topPct={76} heightPct={24} isDragging={isDragging} isValid={validZones.quarry}>
+        {state.lastAction === "quarry" && (
+          <MeeplePiece className="w-[90px] h-[108px] opacity-45 drop-shadow" />
+        )}
       </DroppableZone>
     </div>
+  );
+}
+
+// ── Warning / confirmation modal ───────────────────────────────────────────
+function WarningModal({
+  message,
+  isFatal,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  isFatal: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.75)" }}
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.92, opacity: 0 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className="max-w-xs w-full bg-card border-4 border-destructive/60 p-5 text-center shadow-2xl"
+      >
+        <div className="text-2xl mb-2">{isFatal ? "☠" : "⚠"}</div>
+        <h3 className="font-serif font-bold text-sm text-primary uppercase tracking-widest mb-3">
+          {isFatal ? "Grave Warning" : "Dangerous Territory"}
+        </h3>
+        <p className="font-serif text-xs leading-relaxed opacity-80 mb-5">{message}</p>
+        <div className="flex gap-2 justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="font-serif text-xs border-2 px-4"
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className={`font-serif text-xs px-4 ${isFatal ? "bg-destructive hover:bg-destructive/90" : "bg-amber-700 hover:bg-amber-600"}`}
+            onClick={onConfirm}
+          >
+            {isFatal ? "Proceed Anyway" : "Proceed"}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -469,25 +555,14 @@ function InstructionsModal({
           style={{ background: "rgba(0,0,0,0.82)" }}
           data-testid="instructions-overlay"
         >
-          {/*
-           * Scroll container.
-           * The new scroll PNG has a transparent background — the scroll itself
-           * is portrait (≈820×1024 px, ratio ≈0.80). We allow it to grow to
-           * 580 px wide on desktop so the text isn't cramped.
-           */}
           <motion.div
             initial={{ scale: 0.93, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.93, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="relative"
-            style={{
-              width: "min(580px, 92vw)",
-              /* cap height so the scroll never overflows the viewport */
-              maxHeight: "96vh",
-            }}
+            className="relative select-none"
+            style={{ width: "min(580px, 92vw)" }}
           >
-            {/* ── Scroll frame image ──────────────────────────────────── */}
             <img
               src={scrollBg}
               alt=""
@@ -495,31 +570,12 @@ function InstructionsModal({
               className="w-full h-auto block select-none pointer-events-none"
             />
 
-            {/*
-             * ── Parchment text area ─────────────────────────────────────
-             * The usable parchment inside the new scroll:
-             *   top rod + eagle  ≈ 11 %
-             *   bottom rod       ≈ 12 %
-             *   left columns     ≈ 13 %
-             *   right columns    ≈ 13 %
-             *
-             * We leave an extra 17 % at the bottom for the stone button so
-             * neither overlaps. Text scrolls internally only if necessary.
-             */}
             <div
               className="absolute overflow-y-auto"
-              style={{
-                top: "12%",
-                bottom: "29%",   /* button sits in the lower 17 % of parchment */
-                left: "14%",
-                right: "14%",
-              }}
+              style={{ top: "12%", bottom: "29%", left: "14%", right: "14%" }}
             >
-              <div
-                className="font-serif select-none"
-                style={{ color: "#3b1a09", lineHeight: 1.4 }}
-              >
-                {/* Title */}
+              <div className="font-serif select-none" style={{ color: "#3b1a09", lineHeight: 1.45 }}>
+
                 <h2
                   className="text-center font-bold tracking-wide mb-2"
                   style={{ fontSize: "clamp(13px, 2.4vw, 17px)" }}
@@ -527,71 +583,61 @@ function InstructionsModal({
                   Governor's Mandate
                 </h2>
 
-                {/* Goal + mechanic in one block */}
                 <p
-                  className="font-semibold mb-1"
+                  className="italic mb-2 opacity-75 text-center"
+                  style={{ fontSize: "clamp(9px, 1.6vw, 11px)" }}
+                >
+                  By Imperial decree, you are charged with raising Hadrian's Wall before the northern
+                  tribes overwhelm the province of Britannia.
+                </p>
+
+                <p
+                  className="font-semibold mb-2"
                   style={{ fontSize: "clamp(10px, 1.85vw, 13px)" }}
                 >
-                  Build all 6 wall sections before the Picts overwhelm the province.
-                </p>
-                <p
-                  className="italic mb-2 opacity-70"
-                  style={{ fontSize: "clamp(9px, 1.65vw, 11px)" }}
-                >
-                  Each citizen you assign to a zone adds 1 Pict to the border.
+                  Build all 6 wall sections. Each season, drag one citizen to an assignment:
                 </p>
 
-                {/* Zone rules — compact */}
                 <div
                   className="mb-2"
-                  style={{ fontSize: "clamp(9px, 1.75vw, 12px)", display: "grid", gap: "4px" }}
+                  style={{ fontSize: "clamp(9px, 1.75vw, 12px)", display: "grid", gap: "5px" }}
                 >
-                  <p><span className="font-bold">Town —</span> Your citizen pool (max 9). Farm/Quarry workers return here; soldiers do not.</p>
-                  <p><span className="font-bold">Garrison —</span> A citizen leaves the Town to become a soldier. Raid (2 Picts): 50 % repel (2 Picts gone) or 50 % fail (soldier + 1 Pict lost).</p>
-                  <p><span className="font-bold">Farm —</span> Send 2 → +2 citizens to the Town (capped at 9).</p>
-                  <p><span className="font-bold">Quarry —</span> Send 2 → build 1 wall section.</p>
+                  <p>
+                    <span className="font-bold">Garrison —</span>{" "}
+                    A citizen enlists as a permanent soldier, forming your line of defence.
+                  </p>
+                  <p>
+                    <span className="font-bold">Farm —</span>{" "}
+                    A citizen tends the land, drawing another settler to the province.
+                  </p>
+                  <p>
+                    <span className="font-bold">Quarry —</span>{" "}
+                    Two citizens hew stone to raise one wall section. Costs 2 citizens total.
+                  </p>
                 </div>
 
-                {/* Raid callout */}
                 <div
-                  className="border px-2 py-1 mb-1.5"
+                  className="border px-2 py-1.5 mb-1.5"
                   style={{
                     fontSize: "clamp(9px, 1.6vw, 11px)",
                     borderColor: "rgba(139,32,32,0.45)",
                     background: "rgba(139,32,32,0.06)",
                   }}
                 >
-                  <span className="font-bold" style={{ color: "#8b2020" }}>No soldier at raid: </span>
-                  2 Picts strike — 1 citizen slain (Farm → Town → Quarry priority).
-                </div>
-
-                {/* Loss + tip inline */}
-                <div
-                  className="border px-2 py-1"
-                  style={{
-                    fontSize: "clamp(9px, 1.6vw, 11px)",
-                    borderColor: "rgba(139,32,32,0.40)",
-                  }}
-                >
                   <span className="font-bold" style={{ color: "#8b2020" }}>Lose if: </span>
-                  4 Picts gather · All Romans gone · Town empty
+                  The Town empties · Six Picts gather at the border
                 </div>
 
                 <p
-                  className="italic opacity-50 mt-1.5"
+                  className="italic opacity-60 mt-1"
                   style={{ fontSize: "clamp(8px, 1.5vw, 10px)" }}
                 >
-                  Tip: Enlist 1–2 soldiers early to protect your workforce from raids.
+                  The northern clans grow bolder each season. Watch the frontier — and keep
+                  citizens in the Town at all costs.
                 </p>
               </div>
             </div>
 
-            {/*
-             * ── Stone "I Understand" button ─────────────────────────────
-             * Positioned inside the lower parchment area (above the bottom rod).
-             * The PNG already has a transparent background — no CSS bg needed.
-             * Clickable area matches the image exactly.
-             */}
             <button
               onClick={onClose}
               className="absolute left-1/2 focus:outline-none transition-filter duration-150 ease-out hover:brightness-110 active:brightness-90"
@@ -621,12 +667,49 @@ function InstructionsModal({
   );
 }
 
+// ── Warning helper ─────────────────────────────────────────────────────────
+type DropDest = "garrison" | "farm" | "quarry";
+
+function getWarning(
+  state: GameStateType,
+  dest: DropDest
+): { message: string; isFatal: boolean } | null {
+  const { town, picts } = state;
+
+  if (dest === "garrison" && town === 1) {
+    return {
+      message:
+        "Your last citizen will permanently enlist as a soldier. The Town will be empty and the province will fall immediately.",
+      isFatal: true,
+    };
+  }
+  if (dest === "quarry" && town === 2) {
+    return {
+      message:
+        "The Quarry demands two citizens. This will empty the Town entirely — the province will fall immediately.",
+      isFatal: true,
+    };
+  }
+  if (picts === 5) {
+    return {
+      message:
+        "Six Picts may soon mass at the border. The province teeters on the edge — proceed at your own peril.",
+      isFatal: false,
+    };
+  }
+  return null;
+}
+
 // ── Main Game component ───────────────────────────────────────────────────
 export default function Game() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
   const [showInstructions, setShowInstructions] = useState(true);
   const [activeCitizenIdx, setActiveCitizenIdx] = useState<number | null>(null);
+  const [pendingAction, setPendingAction] = useState<DropDest | null>(null);
+  const [warning, setWarning] = useState<{ message: string; isFatal: boolean } | null>(null);
+
+  const isDragging = activeCitizenIdx !== null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -643,19 +726,44 @@ export default function Game() {
     setActiveCitizenIdx(null);
     if (!e.over) return;
     const dest = e.over.id as string;
-    if (dest === "garrison" || dest === "farm" || dest === "quarry") {
-      dispatch({ type: "ASSIGN", destination: dest });
+    if (dest !== "garrison" && dest !== "farm" && dest !== "quarry") return;
+
+    const typedDest = dest as DropDest;
+
+    // Block quarry when not enough citizens
+    if (typedDest === "quarry" && state.town < 2) return;
+
+    // Check for dangerous-action warning
+    const w = getWarning(state, typedDest);
+    if (w) {
+      setPendingAction(typedDest);
+      setWarning(w);
+      return;
     }
-  }, []);
+
+    dispatch({ type: "ASSIGN", destination: typedDest });
+  }, [state]);
 
   const handleDragCancel = useCallback(() => setActiveCitizenIdx(null), []);
+
+  const handleWarningConfirm = useCallback(() => {
+    if (pendingAction) {
+      dispatch({ type: "ASSIGN", destination: pendingAction });
+    }
+    setPendingAction(null);
+    setWarning(null);
+  }, [pendingAction]);
+
+  const handleWarningCancel = useCallback(() => {
+    setPendingAction(null);
+    setWarning(null);
+  }, []);
 
   function handleRestart() {
     dispatch({ type: "RESTART" });
     setShowInstructions(true);
   }
 
-  /* Game feedback flash state (ready for UI wiring) */
   const prevRef = useRef<GameStateType>(state);
   useEffect(() => {
     prevRef.current = state;
@@ -664,34 +772,17 @@ export default function Game() {
   return (
     <div className="h-dvh w-full flex flex-col bg-background text-foreground overflow-hidden">
 
-      {/* ── Header ── */}
-      <header className="px-3 py-1.5 border-b-2 border-border flex justify-between items-center bg-card flex-shrink-0">
-        <h1 className="text-sm md:text-base font-serif text-primary uppercase tracking-widest font-bold">
-          Hadrian's Wall
-        </h1>
-        <div className="flex gap-1.5 items-center font-serif text-[11px]">
-          <span className={state.picts >= 3 ? "text-destructive font-bold animate-pulse" : "opacity-50"}>
-            👹 {state.picts}/4
-          </span>
-          <span className="opacity-40">·</span>
-          <span className="opacity-50">🧱 {state.wallSections}/{state.maxWallSections}</span>
-        </div>
-      </header>
-
-      {/* ── Main layout ── */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        <main className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
           {isDesktop ? (
             <>
-              {/* Board — fills all remaining space */}
               <div className="flex-1 min-w-0 flex items-center justify-center relative">
-                <DesktopBoard state={state} />
-                {/* Floating sidebar card */}
+                <DesktopBoard state={state} isDragging={isDragging} />
                 <div className="absolute top-3 right-3 w-44 border-2 border-border bg-card/95 shadow-xl overflow-y-auto max-h-[92%]">
                   <SidePanel
                     state={state}
@@ -702,10 +793,9 @@ export default function Game() {
               </div>
             </>
           ) : (
-            /* Mobile: scrollable board then compact strip */
             <div className="flex flex-col">
               <div className="flex-shrink-0">
-                <MobileBoard state={state} />
+                <MobileBoard state={state} isDragging={isDragging} />
               </div>
               <MobileStatStrip
                 state={state}
@@ -714,15 +804,14 @@ export default function Game() {
               />
             </div>
           )}
-        </main>
 
-        {/* Drag overlay */}
-        <DragOverlay dropAnimation={null}>
-          {activeCitizenIdx !== null && (
-            <MeeplePiece className="w-[120px] h-[144px] drop-shadow-2xl" />
-          )}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay dropAnimation={null}>
+            {activeCitizenIdx !== null && (
+              <MeeplePiece className="w-[120px] h-[144px] drop-shadow-2xl" />
+            )}
+          </DragOverlay>
+        </DndContext>
+      </main>
 
       {/* ── Win / Loss overlay ── */}
       <AnimatePresence>
@@ -747,7 +836,7 @@ export default function Game() {
               </p>
               <div className="text-xs opacity-60 font-serif mb-5 space-y-0.5">
                 <p>Wall: {state.wallSections}/{state.maxWallSections} sections</p>
-                <p>Soldiers: {state.soldiers} · Citizens: {state.town + state.farm + state.quarry}</p>
+                <p>Soldiers: {state.soldiers} · Citizens: {state.town}</p>
                 <p>Picts at end: {state.picts}</p>
               </div>
               <Button
@@ -760,6 +849,18 @@ export default function Game() {
               </Button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Warning modal ── */}
+      <AnimatePresence>
+        {warning && (
+          <WarningModal
+            message={warning.message}
+            isFatal={warning.isFatal}
+            onConfirm={handleWarningConfirm}
+            onCancel={handleWarningCancel}
+          />
         )}
       </AnimatePresence>
 
