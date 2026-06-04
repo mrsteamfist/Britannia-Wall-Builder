@@ -99,7 +99,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       picts += 1;
 
       // ── Step 3: Raid roll (D3 − 1: 0 = none, 1 = light, 2 = heavy) ──
-      const roll = rollD3minus1();
+      // If picts > 4 the horde is emboldened — roll can only be 1 or 2 (no quiet turn)
+      const roll = picts > 4 ? ((Math.floor(Math.random() * 2) + 1) as 1 | 2) : rollD3minus1();
 
       if (roll === 0) {
         logs.push('All is quiet at the frontier... for now.');
