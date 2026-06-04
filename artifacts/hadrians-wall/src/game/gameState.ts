@@ -83,8 +83,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           `A citizen enlists — ${soldiers} soldier${soldiers !== 1 ? 's' : ''} now guard the Wall.`
         );
       } else if (destination === 'farm') {
-        // Remove 1 citizen, return that citizen + 1 bonus = net +1 (cap 9)
-        town = Math.min(MAX_TOWN, town - 1 + 2);
+        // Return the sent citizen plus 1 additional = net +2 (cap 9)
+        town = Math.min(MAX_TOWN, town + 2);
         logs.push('The farms are tended — fertile lands draw another settler to the province.');
       } else {
         // Quarry: remove 2 citizens (the sent one + 1 additional), build 1 wall section
