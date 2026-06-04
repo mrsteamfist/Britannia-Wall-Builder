@@ -86,6 +86,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         );
       } else if (destination === 'farm') {
         farm += 1;
+        town = Math.min(MAX_TOWN, town + 1); // farming spawns an extra citizen immediately
         logs.push(
           farm === 1
             ? 'A citizen heads to the Farms. One more needed to complete recruitment.'

@@ -353,25 +353,19 @@ function DesktopBoard({ state }: { state: GameStateType }) {
 
       {/* Garrison droppable: shows soldiers */}
       <DroppableZone id="garrison" topPct={23} heightPct={22}>
-        {state.soldiers === 0 ? (
-          <span className="text-white/30 text-[9px] font-serif italic pt-5">
-            Drop citizen to enlist as soldier
-          </span>
-        ) : (
-          [...Array(Math.min(state.soldiers, 8))].map((_, i) => (
-            <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
-          ))
-        )}
+        {[...Array(Math.min(state.soldiers, 8))].map((_, i) => (
+          <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
+        ))}
         {state.soldiers > 8 && (
           <span className="text-primary text-xs font-bold">+{state.soldiers - 8}</span>
         )}
       </DroppableZone>
 
-      {/* Farm droppable: progress only — workers return to Town */}
+      {/* Farm droppable: ghost workers */}
       <DroppableZone id="farm" topPct={45} heightPct={15}>
-        <span className="text-white/40 text-[9px] font-serif italic">
-          {state.farm === 0 ? "Drop 2 citizens → +2 recruits" : `Farming… ${state.farm}/2`}
-        </span>
+        {[...Array(state.farm)].map((_, i) => (
+          <MeeplePiece key={i} className="w-[100px] h-[120px] opacity-50 drop-shadow" />
+        ))}
       </DroppableZone>
 
       {/* Town zone 57–80%: draggable citizens (source) */}
@@ -385,11 +379,11 @@ function DesktopBoard({ state }: { state: GameStateType }) {
         )}
       </DisplayZone>
 
-      {/* Quarry droppable: progress only — workers return to Town */}
+      {/* Quarry droppable: ghost workers */}
       <DroppableZone id="quarry" topPct={82} heightPct={18}>
-        <span className="text-white/40 text-[9px] font-serif italic">
-          {state.quarry === 0 ? "Drop 2 citizens → +1 wall" : `Quarrying… ${state.quarry}/2`}
-        </span>
+        {[...Array(state.quarry)].map((_, i) => (
+          <MeeplePiece key={i} className="w-[100px] h-[120px] opacity-50 drop-shadow" />
+        ))}
       </DroppableZone>
     </div>
   );
@@ -421,23 +415,17 @@ function MobileBoard({ state }: { state: GameStateType }) {
 
       {/* Garrison 20–42% */}
       <DroppableZone id="garrison" topPct={20} heightPct={22}>
-        {state.soldiers === 0 ? (
-          <span className="text-white/30 text-[8px] font-serif italic pt-4">
-            Drop to enlist soldier
-          </span>
-        ) : (
-          [...Array(Math.min(state.soldiers, 5))].map((_, i) => (
-            <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
-          ))
-        )}
+        {[...Array(Math.min(state.soldiers, 5))].map((_, i) => (
+          <SoldierPiece key={i} className="w-[120px] h-[144px] drop-shadow" />
+        ))}
         {state.soldiers > 5 && <span className="text-primary text-xs font-bold">+{state.soldiers - 5}</span>}
       </DroppableZone>
 
       {/* Farm 42–60% */}
       <DroppableZone id="farm" topPct={42} heightPct={18}>
-        <span className="text-white/40 text-[8px] font-serif italic">
-          {state.farm === 0 ? "2 → +2 recruits" : `Farming… ${state.farm}/2`}
-        </span>
+        {[...Array(state.farm)].map((_, i) => (
+          <MeeplePiece key={i} className="w-[90px] h-[108px] opacity-50 drop-shadow" />
+        ))}
       </DroppableZone>
 
       {/* Town 60–76%: draggable citizens */}
@@ -453,9 +441,9 @@ function MobileBoard({ state }: { state: GameStateType }) {
 
       {/* Quarry 76–100% */}
       <DroppableZone id="quarry" topPct={76} heightPct={24}>
-        <span className="text-white/40 text-[8px] font-serif italic">
-          {state.quarry === 0 ? "2 → +1 wall section" : `Quarrying… ${state.quarry}/2`}
-        </span>
+        {[...Array(state.quarry)].map((_, i) => (
+          <MeeplePiece key={i} className="w-[90px] h-[108px] opacity-50 drop-shadow" />
+        ))}
       </DroppableZone>
     </div>
   );
